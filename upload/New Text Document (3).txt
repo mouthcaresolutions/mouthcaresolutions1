@@ -1,0 +1,208 @@
+MASTER PROMPT FOR GPT (FULL WEBSITE + 365 AUTO BLOGS)
+
+PROJECT: Mouth Care Solutions – Complete WordPress Content + 365 Auto SEO Blog Posts
+
+Build a WordPress WXR 1.2 XML file named mouthcaresolutions-content.xml, fully ready to import via WordPress → Tools → Import → WordPress.
+
+The XML must include:
+
+🏥 1. CLINIC DETAILS
+
+Clinic Name: Mouth Care Solutions
+
+Tagline: Smile with us
+
+Address: Door No. 29-28-23, Bhavani Complex, Suryaraopeta, Vijayawada, Andhra Pradesh 520002
+
+City/State: Vijayawada, Andhra Pradesh
+
+Phone: 9866344866
+
+Email: mouthcaresolutions@gmail.com
+
+Website: https://mouthcaresolutions.com
+
+Working Hours: Mon–Sat 10:00–20:00, Sunday Closed
+
+WhatsApp: +91 9866344866
+
+Google Map: https://maps.app.goo.gl/fLb5iKihcmXN9N696
+
+🖥️ 2. SITE STRUCTURE (PAGES)
+
+Create SEO-optimized content and schema for these 5 main pages:
+
+Home Page
+
+Hero title: “Smile with us”
+
+Service highlights
+
+Why Choose Us section (Experienced Dentists, Painless Treatment, Modern Technology, Affordable Care)
+
+Testimonials (placeholder quotes)
+
+WhatsApp “Book Now” button
+
+Google Map embed
+
+About Us
+
+300–400 words about the clinic’s mission, hygiene standards, and modern equipment
+
+Mention Vijayawada and Andhra Pradesh for SEO
+
+Include call-to-action to “Book Appointment”
+
+Our Doctors
+
+Profiles for all dentists (from PDF list if available, else create placeholders)
+
+Each with: Full name, qualification, specialization, years of experience, short bio
+
+Add profile photo placeholders
+
+Services
+
+Include all major categories and subservices:
+
+Preventive Dentistry: Checkups, Cleaning, Scaling, Fluoride
+
+Restorative Dentistry: Fillings, Crowns, Bridges
+
+Cosmetic Dentistry: Whitening, Veneers, Smile Makeover
+
+Orthodontics: Braces, Invisalign, Aligners
+
+Endodontics: Root Canal Treatment
+
+Prosthodontics: Implants, Dentures
+
+Pediatric Dentistry: Kids Care
+
+Oral Surgery: Extraction, Wisdom Tooth Removal
+
+Emergency Dental Services
+
+Contact Us
+
+Address, phone, email, working hours
+
+WhatsApp “Chat Now” button
+
+Embedded Google Map
+
+Contact form placeholders (Name, Email, Message)
+
+🧾 3. BLOG STRUCTURE (365 AUTO POSTS)
+
+Create 365 blog posts — one for each day — from October 25, 2025 → October 24, 2026.
+
+Each post must include:
+
+Title: Catchy, SEO-optimized dental topic
+
+Length: 500–800 words
+
+Focus keywords: Dentist in Vijayawada, Dental Clinic near me, Root Canal Treatment Vijayawada, Teeth Whitening, Braces and Aligners, Dental Implants, Cosmetic Dentistry, etc.
+
+Categories:
+
+General Dentistry
+
+Cosmetic Dentistry
+
+Oral Hygiene
+
+Pediatric Dentistry
+
+Implants & Prosthodontics
+
+Orthodontics
+
+Preventive Dental Care
+
+Post type: post
+
+Status: publish
+
+Author: admin_mcs
+
+Scheduled dates: Auto-publish one per day
+
+Each post should end with:
+
+“Visit Mouth Care Solutions, Vijayawada, for expert dental care.
+Call 9866344866 or WhatsApp +91 9866344866 to book your appointment today!”
+
+🧩 4. SEO FEATURES
+
+Add LocalBusiness + Dentist JSON-LD schema with:
+
+Clinic name, address, phone, email, website, opening hours
+
+Add Article schema to blog posts
+
+Auto-generate meta titles & descriptions
+
+Include wp:postmeta for _yoast_wpseo_title and _yoast_wpseo_metadesc (or Rank Math equivalents)
+
+Use keywords for Vijayawada in at least 50% of posts
+
+Include internal links between related posts
+
+Add image alt tags: “Dental treatment in Vijayawada - Mouth Care Solutions”
+
+💬 5. ADDITIONAL ELEMENTS
+
+Floating WhatsApp chat button linking to https://wa.me/919866344866
+
+Footer on every page:
+
+© {year} Mouth Care Solutions | Door No. 29-28-23, Bhavani Complex, Suryaraopeta, Vijayawada, Andhra Pradesh 520002 |  
+Call: +91 98663 44866 | Email: mouthcaresolutions@gmail.com | Open Mon–Sat 10AM–8PM
+
+
+Robots.txt & sitemap references
+
+⚙️ 6. TECHNICAL REQUIREMENTS
+
+Valid WordPress WXR 1.2 XML format
+
+UTF-8 encoding
+
+<wp:wxr_version>1.2</wp:wxr_version> included
+
+5 static pages + 365 posts = 370 total <item> elements
+
+Compatible with WordPress Importer plugin
+
+🗓️ 7. PUBLISHING SETTINGS
+
+Each blog auto-scheduled:
+
+Day 1: 2025-10-25
+
+Day 365: 2026-10-24
+
+Status: publish
+
+Visibility: public
+
+Comments: open
+
+🎯 8. FINAL OUTPUT
+
+File name: mouthcaresolutions-content.xml
+
+Ready to import into WordPress via Tools → Import → WordPress
+
+Once imported:
+✅ 5 pages visible under Pages
+✅ 365 auto-scheduled posts under Posts
+✅ SEO schema + metadata active
+✅ WhatsApp and footer contact visible site-wide
+✅ Fully indexable for Google SEO & Maps
+
+Deliverable:
+A valid mouthcaresolutions-content.xml file ready for upload and import that builds a complete content structure for the Mouth Care Solutions WordPress site and auto-publishes one SEO blog post daily for 1 year.
