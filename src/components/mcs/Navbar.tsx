@@ -10,6 +10,7 @@ const navLinks = [
   { id: "about", label: "About Us" },
   { id: "doctors", label: "Our Doctors" },
   { id: "services", label: "Services" },
+  { id: "blog", label: "Blog" },
   { id: "contact", label: "Contact Us" },
 ];
 

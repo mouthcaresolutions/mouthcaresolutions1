@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "**MOUTH CARE SOLUTIONS**\n\n**LIST OF DOCTORS**\n\n1.  **Dr. B. Madhuri, BDS**\n    *   Chief Cosmetic Dental Surgeon\n\n2.  **Dr. Rajya Lakshmi, BDS**\n\n3.  **Dr. A. Bilwa Bindu, MDS**\n    *   Periodontist\n\n4.  **Dr. M.S. Karthik, MDS**\n    *   Oral & Maxillofacial Surgeon\n\n5.  **Dr. G. Rakesh, MDS**\n    *   Oral & Maxillofacial Surgeon\n\n6.  **Dr. K. Jyothsna, MDS**\n    *   Orthodontist\n\n7.  **Dr. Bindu Madhavi, MDS**\n    *   Endodontist\n\n8.  **Dr. Shoba, MDS**\n    *   Endodontist\n\n9.  **Dr. Tilak, MDS**\n    *   Pedodontist\n\n10. **Dr. M B Naik, BDS**",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1786178964,
+  "id": "20260808164920f173e8da917243af",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260808164920f173e8da917243af",
+  "usage": {
+    "completion_tokens": 226,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1629,
+    "prompt_tokens_details": {
+      "cached_tokens": 3
+    },
+    "total_tokens": 1855
+  }
+}

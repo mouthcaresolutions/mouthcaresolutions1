@@ -12,8 +12,9 @@ import AboutSection from "@/components/mcs/AboutSection";
 import DoctorsSection from "@/components/mcs/DoctorsSection";
 import ServicesSection from "@/components/mcs/ServicesSection";
 import ContactSection from "@/components/mcs/ContactSection";
+import BlogSection from "@/components/mcs/BlogSection";
 
-const sectionIds = ["home", "about", "doctors", "services", "contact"];
+const sectionIds = ["home", "about", "doctors", "services", "blog", "contact"];
 
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState("home");
@@ -61,6 +62,7 @@ export default function HomePage() {
         <AboutSection />
         <DoctorsSection />
         <ServicesSection />
+        <BlogSection />
         <ContactSection />
       </main>
       <Footer />
