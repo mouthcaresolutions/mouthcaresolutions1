@@ -1,0 +1,481 @@
+    40→    40→        - StaticText "Patients"
+    41→    41→        - StaticText "8+"
+    42→    42→        - StaticText "Specialists"
+    43→    43→        - StaticText "4.8"
+    44→    44→        - StaticText "Rating"
+    45→    45→  - paragraph
+    46→    46→    - StaticText "WHY CHOOSE US"
+    47→    47→  - heading "Trusted Dental Care in Vijayawada" [level=2, ref=e15]
+    48→    48→  - paragraph
+    49→    49→    - StaticText "At Mouth Care Solutions, we combine expertise, technology, and compassion to deliver dental care that you and your family can trust."
+    50→    50→  - heading "Experienced Dentists" [level=3, ref=e16]
+    51→    51→  - paragraph
+    52→    52→    - StaticText "Our team of qualified dental professionals brings years of expertise across all dental specialties, ensuring you receive the highest standard of care for every treatment."
+    53→    53→  - heading "Painless Treatment" [level=3, ref=e17]
+    54→    54→  - paragraph
+    55→    55→    - StaticText "We use advanced anesthesia techniques and gentle procedures to ensure your visit is as comfortable and pain-free as possible. Your comfort is our top priority."
+    56→    56→  - heading "Modern Technology" [level=3, ref=e18]
+    57→    57→  - paragraph
+    58→    58→    - StaticText "Equipped with digital X-rays, CAD/CAM systems, laser dentistry, and 3D imaging, we deliver precise diagnoses and treatments with cutting-edge technology."
+    59→    59→  - heading "Affordable Care" [level=3, ref=e19]
+    60→    60→  - paragraph
+    61→    61→    - StaticText "Quality dental care should be accessible to everyone. We offer transparent pricing, flexible payment options, and insurance assistance for all treatments."
+    62→    62→  - paragraph
+    63→    63→    - StaticText "OUR EXPERTISE"
+    64→    64→  - heading "Comprehensive Dental Services" [level=2, ref=e20]
+    65→    65→  - paragraph
+    66→    66→    - StaticText "From routine checkups to advanced cosmetic procedures, we provide a full range of dental treatments under one roof in Vijayawada."
+    67→    67→  - heading "Dental Checkups" [level=3, ref=e21]
+    68→    68→  - paragraph
+    69→    69→    - StaticText "Preventive"
+    70→    70→  - StaticText "→"
+    71→    71→  - heading "Teeth Whitening" [level=3, ref=e22]
+    72→    72→  - paragraph
+    73→    73→    - StaticText "Cosmetic"
+    74→    74→  - StaticText "→"
+    75→    75→  - heading "Smile Makeover" [level=3, ref=e23]
+    76→    76→  - paragraph
+    77→    77→    - StaticText "Cosmetic"
+    78→    78→  - StaticText "→"
+    79→    79→  - heading "Braces & Aligners" [level=3, ref=e24]
+    80→    80→  - paragraph
+    81→    81→    - StaticText "Orthodontics"
+    82→    82→  - StaticText "→"
+    83→    83→  - heading "Root Canal" [level=3, ref=e25]
+    84→    84→  - paragraph
+    85→    85→    - StaticText "Endodontics"
+    86→    86→  - StaticText "→"
+    87→    87→  - heading "Dental Implants" [level=3, ref=e26]
+    88→    88→  - paragraph
+    89→    89→    - StaticText "Prosthodontics"
+    90→    90→  - StaticText "→"
+    91→    91→  - heading "Kids Dentistry" [level=3, ref=e27]
+    92→    92→  - paragraph
+    93→    93→    - StaticText "Pediatric"
+    94→    94→  - StaticText "→"
+    95→    95→  - heading "Extractions" [level=3, ref=e28]
+    96→    96→  - paragraph
+    97→    97→    - StaticText "Surgery"
+    98→    98→  - StaticText "→"
+    99→    99→  - heading "Emergency Care" [level=3, ref=e29]
+   100→   100→  - paragraph
+   101→   101→    - StaticText "Emergency"
+   102→   102→  - StaticText "→"
+   103→   103→  - button "View All Services" [ref=e105]
+   104→   104→  - paragraph
+   105→   105→    - StaticText "PATIENT STORIES"
+   106→   106→  - heading "What Our Patients Say" [level=2, ref=e30]
+   107→   107→  - paragraph
+   108→   108→    - StaticText "Real stories from real patients who trusted us with their smiles. Your satisfaction is the greatest reward for our team."
+   109→   109→  - generic
+   110→   110→    - paragraph
+   111→   111→      - StaticText "“I was terrified of root canals, but Dr. Rao made the entire process completely painless. The clinic is spotless, and the staff is incredibly warm. Best dental experience I have ever had in Vijayawada!”"
+   112→   112→    - paragraph
+   113→   113→      - StaticText "Priya Sharma"
+   114→   114→    - paragraph
+   115→   115→      - StaticText "Root Canal Treatment"
+   116→   116→  - generic
+   117→   117→    - paragraph
+   118→   118→      - StaticText "“Got my dental implants done here. The results are amazing — they look and feel completely natural. Dr. Reddy explained every step clearly. Highly recommend Mouth Care Solutions for implants.”"
+   119→   119→    - paragraph
+   120→   120→      - StaticText "Ramesh Kumar"
+   121→   121→    - paragraph
+   122→   122→      - StaticText "Dental Implants"
+   123→   123→  - generic
+   124→   124→    - paragraph
+   125→   125→      - StaticText "“My son used to cry at the thought of visiting a dentist. The pediatric team here is so gentle and patient. Now he actually looks forward to his checkups! Thank you, Mouth Care Solutions.”"
+   126→   126→    - paragraph
+   127→   127→      - StaticText "Anitha Devi"
+   128→   128→    - paragraph
+   129→   129→      - StaticText "Pediatric Dentistry"
+   130→   130→  - generic
+   131→   131→    - paragraph
+   132→   132→      - StaticText "“I got braces at 35 and was self-conscious, but the Invisalign treatment here changed my smile completely in just 10 months. The team was supportive throughout the journey.”"
+   133→   133→    - paragraph
+   134→   134→      - StaticText "Srinivas Rao"
+   135→   135→    - paragraph
+   136→   136→      - StaticText "Orthodontics"
+   137→   137→  - generic
+   138→   138→    - paragraph
+   139→   139→      - StaticText "“The teeth whitening session gave me brilliant results in just one visit. My confidence has skyrocketed. The pricing was very fair compared to other clinics in Vijayawada.”"
+   140→   140→    - paragraph
+   141→   141→      - StaticText "Lakshmi Narayana"
+   142→   142→    - paragraph
+   143→   143→      - StaticText "Teeth Whitening"
+   144→   144→  - generic
+   145→   145→    - paragraph
+   146→   146→      - StaticText "“I came in for an emergency extraction on a Saturday evening and they accommodated me immediately. Professional, quick, and caring. This is now my family's go-to dental clinic.”"
+   147→   147→    - paragraph
+   148→   148→      - StaticText "Venkata Ramana"
+   149→   149→    - paragraph
+   150→   150→      - StaticText "Emergency Dental Care"
+   151→   151→  - paragraph
+   152→   152→    - StaticText "ABOUT US"
+   153→   153→  - heading "Your Trusted Dental Partner in Vijayawada" [level=2, ref=e31]
+   154→   154→  - paragraph
+   155→   155→    - StaticText "Dedicated to delivering exceptional dental care with a personal touch since our establishment in the heart of Vijayawada, Andhra Pradesh."
+   156→   156→  - heading "Committed to Your Oral Health & Beautiful Smile" [level=3, ref=e32]
+   157→   157→  - paragraph
+   158→   158→    - StaticText "Mouth Care Solutions was founded with a simple yet powerful mission: to make high-quality dental care accessible and comfortable for everyone in Vijayawada and the surrounding regions of Andhra Pradesh. Located at Bhavani Complex in Suryaraopeta, our clinic has grown to become one of the most trusted names in dental healthcare in the city."
+   159→   159→  - paragraph
+   160→   160→    - StaticText "Our clinic is equipped with the latest dental technology including digital radiography, intraoral cameras, CAD/CAM systems for same-day crowns, and advanced laser dentistry equipment. Every instrument is sterilized using hospital-grade autoclaves, and we follow stringent infection control protocols that exceed international standards."
+   161→   161→  - paragraph
+   162→   162→    - StaticText "We believe that a visit to the dentist should never be a source of anxiety. From the moment you walk through our doors, our friendly team ensures you feel welcomed and relaxed. Our dentists take the time to explain every procedure, answer your questions, and address your concerns thoroughly."
+   163→   163→  - paragraph
+   164→   164→    - StaticText "Whether you need a routine cleaning, a complex root canal, dental implants, or a complete smile makeover, our multidisciplinary team works together to create personalized treatment plans that suit your unique needs and budget. At Mouth Care Solutions, your smile is our responsibility, and we take that seriously."
+   165→   165→  - button "Book Appointment" [ref=e106]
+   166→   166→  - heading "Our Mission" [level=4, ref=e33]
+   167→   167→  - paragraph
+   168→   168→    - StaticText "To provide comprehensive, patient-centered dental care using the latest technology and evidence-based practices, making every visit comfortable, effective, and affordable for families across Vijayawada."
+   169→   169→  - heading "Our Vision" [level=4, ref=e34]
+   170→   170→  - paragraph
+   171→   171→    - StaticText "To be the most trusted and preferred dental healthcare provider in Andhra Pradesh, known for clinical excellence, innovation, and a genuine commitment to improving the oral health and confidence of every patient we serve."
+   172→   172→  - heading "Our Values" [level=4, ref=e35]
+   173→   173→  - paragraph
+   174→   174→    - StaticText "Patient-first approach, unwavering commitment to hygiene and safety, continuous learning and adoption of new techniques, transparent communication, and treating every patient like family."
+   175→   175→  - heading "Our Hygiene Standards" [level=4, ref=e36]
+   176→   176→  - list
+   177→   177→    - listitem [level=1]
+   178→   178→      - StaticText "Hospital-grade autoclave sterilization for all instruments"
+   179→   179→    - listitem [level=1]
+   180→   180→      - StaticText "Single-use disposable items wherever possible"
+   181→   181→    - listitem [level=1]
+   182→   182→      - StaticText "Stringent infection control protocols (CDC standards)"
+   183→   183→    - listitem [level=1]
+   184→   184→      - StaticText "Regular equipment calibration and maintenance"
+   185→   185→    - listitem [level=1]
+   186→   186→      - StaticText "Sanitized treatment rooms between every patient"
+   187→   187→  - paragraph
+   188→   188→    - StaticText "OUR DOCTORS"
+   189→   189→  - heading "Meet Our Expert Dental Team" [level=2, ref=e37]
+   190→   190→  - paragraph
+   191→   191→    - StaticText "Our team of highly qualified and experienced dental specialists is dedicated to providing you and your family with the best possible dental care in Vijayawada."
+   192→   192→  - heading "Dr. B. Madhuri" [level=3, ref=e38]
+   193→   193→  - paragraph
+   194→   194→    - StaticText "BDS"
+   195→   195→  - StaticText "Chief Cosmetic Dental Surgeon"
+   196→   196→  - paragraph
+   197→   197→    - StaticText "Dr. B. Madhuri leads the cosmetic dentistry wing at Mouth Care Solutions. With extensive experience in smile design, veneers, teeth whitening, and full-mouth makeovers, she combines artistic vision with clinical precision. She is dedicated to helping patients achieve the smile they have always dreamed of, using the latest digital smile design technology to preview results before treatment begins."
+   198→   198→  - heading "Dr. Rajya Lakshmi" [level=3, ref=e39]
+   199→   199→  - paragraph
+   200→   200→    - StaticText "BDS"
+   201→   201→  - StaticText "General Dentist"
+   202→   202→  - paragraph
+   203→   203→    - StaticText "Dr. Rajya Lakshmi is a skilled general dentist providing comprehensive oral care including routine checkups, fillings, cleanings, and preventive treatments. She is known for her gentle approach and thorough patient examinations, ensuring every patient receives personalized care. She focuses on patient education and preventive strategies to maintain long-term oral health."
+   204→   204→  - heading "Dr. A. Bilwa Bindu" [level=3, ref=e40]
+   205→   205→  - paragraph
+   206→   206→    - StaticText "MDS"
+   207→   207→  - StaticText "Periodontist"
+   208→   208→  - paragraph
+   209→   209→    - StaticText "Dr. A. Bilwa Bindu is a specialist in periodontics, focusing on the prevention, diagnosis, and treatment of gum diseases. She handles complex cases of gingivitis and periodontitis with expertise in scaling, root planing, gum grafting, and laser periodontal therapy. Her treatment plans are designed to halt disease progression and restore healthy gums for a strong foundation."
+   210→   210→  - heading "Dr. M.S. Karthik" [level=3, ref=e41]
+   211→   211→  - paragraph
+   212→   212→    - StaticText "MDS"
+   213→   213→  - StaticText "Oral & Maxillofacial Surgeon"
+   214→   214→  - paragraph
+   215→   215→    - StaticText "Dr. M.S. Karthik is a highly trained oral and maxillofacial surgeon handling complex surgical procedures including impacted wisdom teeth removal, jaw fracture repairs, cyst and tumor removals, and dental implant placement. His surgical precision and compassionate pre- and post-operative care ensure optimal outcomes and comfortable recovery for every patient."
+   216→   216→  - heading "Dr. G. Rakesh" [level=3, ref=e42]
+   217→   217→  - paragraph
+   218→   218→    - StaticText "MDS"
+   219→   219→  - StaticText "Oral & Maxillofacial Surgeon"
+   220→   220→  - paragraph
+   221→   221→    - StaticText "Dr. G. Rakesh is an experienced oral and maxillofacial surgeon specializing in surgical extractions, bone grafting, and reconstructive jaw surgery. He brings advanced surgical skills to complex dental cases, working closely with the implant and prosthetic teams to deliver comprehensive rehabilitation solutions for patients with severe dental issues."
+   222→   222→  - heading "Dr. K. Jyothsna" [level=3, ref=e43]
+   223→   223→  - paragraph
+   224→   224→    - StaticText "MDS"
+   225→   225→  - StaticText "Orthodontist"
+   226→   226→  - paragraph
+   227→   227→    - StaticText "Dr. K. Jyothsna is a dedicated orthodontist specializing in braces, clear aligners, and orthodontic correction for children and adults. She creates customized treatment plans to correct crowding, spacing, bite issues, and jaw alignment problems. Her friendly approach and attention to detail ensure a comfortable and effective orthodontic journey for every patient."
+   228→   228→  - heading "Dr. Bindu Madhavi" [level=3, ref=e44]
+   229→   229→  - paragraph
+   230→   230→    - StaticText "MDS"
+   231→   231→  - StaticText "Endodontist"
+   232→   232→  - paragraph
+   233→   233→    - StaticText "Dr. Bindu Madhavi is a skilled endodontist specializing in root canal treatment and dental pain management. Using advanced rotary instruments, dental microscopes, and modern obturation techniques, she performs painless and precise root canal procedures. Her expertise extends to retreatment of previously failed root canals and managing complex dental trauma cases."
+   234→   234→  - heading "Dr. Shoba" [level=3, ref=e45]
+   235→   235→  - paragraph
+   236→   236→    - StaticText "MDS"
+   237→   237→  - StaticText "Endodontist"
+   238→   238→  - paragraph
+   239→   239→    - StaticText "Dr. Shoba is an experienced endodontist dedicated to saving natural teeth through expert root canal therapy. She is proficient in single-visit root canals, microscopic endodontics, and regenerative endodontic procedures. Patients appreciate her patient explanations, gentle technique, and commitment to making each procedure as comfortable as possible."
+   240→   240→  - heading "Dr. Tilak" [level=3, ref=e46]
+   241→   241→  - paragraph
+   242→   242→    - StaticText "MDS"
+   243→   243→  - StaticText "Pedodontist"
+   244→   244→  - paragraph
+   245→   245→    - StaticText "Dr. Tilak is a specialist in pediatric dentistry, providing gentle and effective dental care for infants, children, and teenagers. His expertise includes fluoride treatments, pit and fissure sealants, cavity management in primary teeth, and interceptive orthodontics. He creates a fun and positive dental experience that helps children develop healthy oral habits for life."
+   246→   246→  - heading "Dr. M B Naik" [level=3, ref=e47]
+   247→   247→  - paragraph
+   248→   248→    - StaticText "BDS"
+   249→   249→  - StaticText "General Dentist"
+   250→   250→  - paragraph
+   251→   251→    - StaticText "Dr. M B Naik is a compassionate general dentist providing a wide range of dental treatments including fillings, extractions, dentures, and preventive care. He takes a holistic approach to patient health, ensuring comprehensive examinations and clear communication about treatment options. He is committed to making quality dental care accessible and comfortable for all patients."
+   252→   252→  - paragraph
+   253→   253→    - StaticText "OUR SERVICES"
+   254→   254→  - heading "Complete Dental Care Under One Roof" [level=2, ref=e48]
+   255→   255→  - paragraph
+   256→   256→    - StaticText "We offer a comprehensive range of dental treatments covering preventive, restorative, cosmetic, and surgical dentistry. Every procedure is performed using modern equipment and evidence-based techniques at our Vijayawada clinic."
+   257→   257→  - heading "Preventive Dentistry" [level=3, ref=e49]
+   258→   258→  - paragraph
+   259→   259→    - StaticText "Prevention is the foundation of good oral health. Our preventive services are designed to catch problems early and keep your teeth and gums healthy for life. Regular visits to our Vijayawada clinic help prevent costly treatments down the road."
+   260→   260→  - heading "Dental Checkups" [level=4, ref=e50]
+   261→   261→  - paragraph
+   262→   262→    - StaticText "Comprehensive oral examinations including visual inspection, palpation, and screening for oral cancer, cavities, and gum disease."
+   263→   263→  - heading "Professional Cleaning" [level=4, ref=e51]
+   264→   264→  - paragraph
+   265→   265→    - StaticText "Thorough removal of plaque and tartar buildup using ultrasonic scalers and hand instruments, followed by polishing for a fresh feel."
+   266→   266→  - heading "Scaling & Root Planing" [level=4, ref=e52]
+   267→   267→  - paragraph
+   268→   268→    - StaticText "Deep cleaning treatment for gingivitis and periodontitis, removing bacteria below the gumline to restore gum health."
+   269→   269→  - heading "Fluoride Treatment" [level=4, ref=e53]
+   270→   270→  - paragraph
+   271→   271→    - StaticText "Professional fluoride application to strengthen tooth enamel and provide added protection against cavities and decay."
+   272→   272→  - heading "Restorative Dentistry" [level=3, ref=e54]
+   273→   273→  - paragraph
+   274→   274→    - StaticText "When teeth are damaged by decay, injury, or wear, our restorative treatments bring them back to full function and appearance. We use the finest materials and techniques to ensure durability and a natural look."
+   275→   275→  - heading "Dental Fillings" [level=4, ref=e55]
+   276→   276→  - paragraph
+   277→   277→    - StaticText "Tooth-colored composite and ceramic fillings that blend seamlessly with your natural teeth, restoring strength and appearance."
+   278→   278→  - heading "Crowns" [level=4, ref=e56]
+   279→   279→  - paragraph
+   280→   280→    - StaticText "Custom-made porcelain and zirconia crowns that cap damaged or weakened teeth, providing long-lasting protection and a natural appearance."
+   281→   281→  - heading "Bridges" [level=4, ref=e57]
+   282→   282→  - paragraph
+   283→   283→    - StaticText "Fixed dental prosthetics that replace one or more missing teeth by anchoring to adjacent teeth, restoring your complete smile and bite."
+   284→   284→  - heading "Cosmetic Dentistry" [level=3, ref=e58]
+   285→   285→  - paragraph
+   286→   286→    - StaticText "Transform your smile with our advanced cosmetic procedures. Whether you want brighter teeth, a complete smile makeover, or minor corrections, our cosmetic specialists deliver stunning, natural-looking results."
+   287→   287→  - heading "Teeth Whitening" [level=4, ref=e59]
+   288→   288→  - paragraph
+   289→   289→    - StaticText "In-office and take-home whitening options using professional-grade bleaching agents for safe, dramatic whitening results in as little as one visit."
+   290→   290→  - heading "Veneers" [level=4, ref=e60]
+   291→   291→  - paragraph
+   292→   292→    - StaticText "Ultra-thin porcelain shells bonded to the front of teeth to correct chips, gaps, discoloration, and minor misalignments for a flawless smile."
+   293→   293→  - heading "Smile Makeover" [level=4, ref=e61]
+   294→   294→  - paragraph
+   295→   295→    - StaticText "A customized combination of treatments including whitening, veneers, bonding, and gum contouring to completely transform your smile."
+   296→   296→  - heading "Orthodontics" [level=3, ref=e62]
+   297→   297→  - paragraph
+   298→   298→    - StaticText "Straighten your teeth and correct your bite at any age. From traditional braces to modern clear aligners, we offer a range of orthodontic solutions tailored to your lifestyle and treatment goals."
+   299→   299→  - heading "Metal & Ceramic Braces" [level=4, ref=e63]
+   300→   300→  - paragraph
+   301→   301→    - StaticText "Traditional and tooth-colored bracket systems for effective correction of crowding, spacing, overbites, underbites, and crossbites."
+   302→   302→  - heading "Invisalign & Clear Aligners" [level=4, ref=e64]
+   303→   303→  - paragraph
+   304→   304→    - StaticText "Virtually invisible, removable aligner trays that straighten teeth comfortably without metal brackets or wires."
+   305→   305→  - heading "Endodontics" [level=3, ref=e65]
+   306→   306→  - paragraph
+   307→   307→    - StaticText "Save your natural teeth with our advanced root canal treatments. Using microscopic magnification and modern techniques, we make root canals comfortable, precise, and highly successful."
+   308→   308→  - heading "Root Canal Treatment" [level=4, ref=e66]
+   309→   309→  - paragraph
+   310→   310→    - StaticText "Painless, single-sitting and multi-sitting root canal therapy using rotary instruments, apex locators, and dental microscopes for precision."
+   311→   311→  - heading "Retreatment" [level=4, ref=e67]
+   312→   312→  - paragraph
+   313→   313→    - StaticText "Specialized re-treatment of previously failed root canals to eliminate persistent infection and save the tooth from extraction."
+   314→   314→  - heading "Prosthodontics" [level=3, ref=e68]
+   315→   315→  - paragraph
+   316→   316→    - StaticText "Replace missing teeth with advanced prosthetic solutions that look, feel, and function like natural teeth. Our implant and denture services restore your confidence and quality of life."
+   317→   317→  - heading "Dental Implants" [level=4, ref=e69]
+   318→   318→  - paragraph
+   319→   319→    - StaticText "Titanium implant posts placed in the jawbone to serve as artificial tooth roots, supporting crowns, bridges, or dentures for permanent tooth replacement."
+   320→   320→  - heading "Dentures (Complete & Partial)" [level=4, ref=e70]
+   321→   321→  - paragraph
+   322→   322→    - StaticText "Custom-fabricated removable and fixed dentures that restore your smile, chewing ability, and facial appearance with a comfortable fit."
+   323→   323→  - heading "Pediatric Dentistry" [level=3, ref=e71]
+   324→   324→  - paragraph
+   325→   325→    - StaticText "Gentle, fun, and effective dental care designed specifically for children from infancy through adolescence. Our pediatric specialists create positive dental experiences that set the foundation for a lifetime of good oral health."
+   326→   326→  - heading "Kids Dental Checkups" [level=4, ref=e72]
+   327→   327→  - paragraph
+   328→   328→    - StaticText "Age-appropriate examinations, cleanings, and fluoride treatments in a child-friendly environment that makes kids actually enjoy visiting the dentist."
+   329→   329→  - heading "Pit & Fissure Sealants" [level=4, ref=e73]
+   330→   330→  - paragraph
+   331→   331→    - StaticText "Protective coatings applied to the chewing surfaces of back teeth to prevent cavities in children and teenagers."
+   332→   332→  - heading "Interceptive Orthodontics" [level=4, ref=e74]
+   333→   333→  - paragraph
+   334→   334→    - StaticText "Early orthodontic evaluation and treatment for children to guide jaw growth and tooth eruption, preventing more serious issues later."
+   335→   335→  - heading "Oral Surgery" [level=3, ref=e75]
+   336→   336→  - paragraph
+   337→   337→    - StaticText "When surgical intervention is needed, our experienced oral surgeons deliver safe and precise procedures with minimal discomfort and fast recovery times."
+   338→   338→  - heading "Tooth Extractions" [level=4, ref=e76]
+   339→   339→  - paragraph
+   340→   340→    - StaticText "Simple and surgical extractions performed with care, including options for anxiety management to ensure a comfortable experience."
+   341→   341→  - heading "Wisdom Tooth Removal" [level=4, ref=e77]
+   342→   342→  - paragraph
+   343→   343→    - StaticText "Impacted and partially erupted wisdom tooth removal using advanced surgical techniques for swift recovery and minimal post-operative pain."
+   344→   344→  - heading "Emergency Dental Services" [level=3, ref=e78]
+   345→   345→  - paragraph
+   346→   346→    - StaticText "Dental emergencies do not wait, and neither do we. Our clinic provides prompt emergency dental care for urgent situations including severe pain, trauma, and infections during working hours."
+   347→   347→  - heading "Emergency Consultations" [level=4, ref=e79]
+   348→   348→  - paragraph
+   349→   349→    - StaticText "Same-day emergency appointments for acute dental pain, swelling, broken teeth, and other urgent dental problems requiring immediate attention."
+   350→   350→  - heading "Trauma Management" [level=4, ref=e80]
+   351→   351→  - paragraph
+   352→   352→    - StaticText "Treatment for dental injuries including knocked-out teeth, fractures, and soft tissue injuries, with follow-up care to ensure complete recovery."
+   353→   353→  - paragraph
+   354→   354→    - StaticText "DENTAL HEALTH BLOG"
+   355→   355→  - heading "Expert Dental Tips & Articles" [level=2, ref=e81]
+   356→   356→  - paragraph
+   357→   357→    - StaticText "Stay informed with our latest comprehensive articles on dental health, treatments, and oral care tips from our expert dentists in Vijayawada."
+   358→   358→  - link [ref=e82]
+   359→   359→    - article
+   360→   360→      - StaticText "Cosmetic Dentistry"
+   361→   361→      - heading "Teeth Whitening Before and After: Real Results from Mouth Care Solutions Vijayawada" [level=3, ref=e128]
+   362→   362→      - paragraph
+   363→   363→        - StaticText "Discover the transformative power of laser teeth whitening in Vijayawada with Mouth Care Solutions. Our advanced treatments deliver stunning, long-lasting results to enhance your confidence and smile."
+   364→   364→      - StaticText "16 Aug 2026"
+   365→   365→      - StaticText "Read article →"
+   366→   366→  - link [ref=e83]
+   367→   367→    - article
+   368→   368→      - StaticText "Orthodontics"
+   369→   369→      - heading "Insurance Coverage for Dental Braces in Vijayawada - What You Need to Know" [level=4, ref=e129]
+   370→   370→      - paragraph
+   371→   371→        - StaticText "This article covers insurance options, costs, and the treatment process for orthodontic braces in Vijayawada, helping you make informed decisions with guidance from Mouth Care Solutions."
+   372→   372→      - StaticText "16 Aug 2026"
+   373→   373→  - link [ref=e84]
+   374→   374→    - article
+   375→   375→      - StaticText "Restorative Dentistry"
+   376→   376→      - heading "Dental Crowns Cost Without Insurance in Vijayawada: Affordable Payment Options - Part 1" [level=4, ref=e130]
+   377→   377→      - paragraph
+   378→   378→        - StaticText "This article explores the cost of dental crowns without insurance in Vijayawada, covering affordable payment options, treatment process, and benefits. Learn why Mouth Care Solutions is the best choice for crown treatment in Vijayawada."
+   379→   379→      - StaticText "14 Aug 2026"
+   380→   380→  - link [ref=e85]
+   381→   381→    - article
+   382→   382→      - StaticText "Restorative Dentistry"
+   383→   383→      - heading "Looking for Dental Fillings? Visit Mouth Care Solutions in Bhavani Complex, Vijayawada" [level=4, ref=e131]
+   384→   384→      - paragraph
+   385→   385→        - StaticText "Mouth Care Solutions in Vijayawada provides professional cavity fillings using advanced techniques to restore oral health and function. Our expert dentists ensure comfortable, long-lasting results tailored to your needs."
+   386→   386→      - StaticText "14 Aug 2026"
+   387→   387→  - link [ref=e86]
+   388→   388→    - article
+   389→   389→      - StaticText "Preventive Dentistry"
+   390→   390→      - heading "5 Dangerous Myths About Dental Cleaning and Scaling That Could Harm Your Teeth - Part 1" [level=4, ref=e132]
+   391→   391→      - paragraph
+   392→   392→        - StaticText "Discover the truth about dental cleaning myths in Vijayawada and why scaling is crucial for your oral health. Visit Mouth Care Solutions, the best dental clinic in Vijayawada, for expert care."
+   393→   393→      - StaticText "12 Aug 2026"
+   394→   394→  - link [ref=e87]
+   395→   395→    - article
+   396→   396→      - StaticText "Restorative Dentistry"
+   397→   397→      - heading "What to Expect During Dental Fillings at Our Vijayawada Dental Clinic - Part 1" [level=4, ref=e133]
+   398→   398→      - paragraph
+   399→   399→        - StaticText "This article explains the dental filling process at Mouth Care Solutions in Vijayawada, covering types, aftercare, and filling cost in Vijayawada. Get expert insights from the best dentist in Vijayawada."
+   400→   400→      - StaticText "12 Aug 2026"
+   401→   401→  - link "View All 10 Articles" [ref=e107]
+   402→   402→    - button "View All 10 Articles" [ref=e134]
+   403→   403→      - StaticText "View All 10 Articles"
+   404→   404→  - paragraph
+   405→   405→    - StaticText "CONTACT US"
+   406→   406→  - heading "Get in Touch With Us" [level=2, ref=e88]
+   407→   407→  - paragraph
+   408→   408→    - StaticText "Have a question or ready to book an appointment? Reach out to us through any of the channels below. We are here to help you with all your dental care needs in Vijayawada."
+   409→   409→  - heading "Visit Us" [level=4, ref=e89]
+   410→   410→  - paragraph
+   411→   411→    - StaticText "Door No. 29-28-23, Bhavani Complex"
+   412→   412→  - paragraph
+   413→   413→    - StaticText "Suryaraopeta, Vijayawada"
+   414→   414→  - paragraph
+   415→   415→    - StaticText "Andhra Pradesh 520002"
+   416→   416→  - heading "Call Us" [level=4, ref=e90]
+   417→   417→  - paragraph
+   418→   418→    - link "+91 98663 44866" [ref=e108]
+   419→   419→  - heading "Email Us" [level=4, ref=e91]
+   420→   420→  - paragraph
+   421→   421→    - link "mouthcaresolutions@gmail.com" [ref=e109]
+   422→   422→  - heading "Working Hours" [level=4, ref=e92]
+   423→   423→  - paragraph
+   424→   424→    - StaticText "Monday – Saturday"
+   425→   425→  - paragraph
+   426→   426→    - StaticText "10:00 AM – 8:00 PM"
+   427→   427→  - paragraph
+   428→   428→    - StaticText "Sunday: Closed"
+   429→   429→  - link "Chat on WhatsApp" [ref=e93]
+   430→   430→    - button "Chat on WhatsApp" [ref=e110]
+   431→   431→  - Iframe "Mouth Care Solutions Location" [ref=e94]
+   432→   432→  - heading "Send Us a Message" [level=3, ref=e95]
+   433→   433→  - form
+   434→   434→    - LabelText
+   435→   435→      - StaticText "Full Name"
+   436→   436→    - textbox "Full Name" [required, ref=e111]
+   437→   437→    - LabelText
+   438→   438→      - StaticText "Phone Number"
+   439→   439→    - textbox "Phone Number" [ref=e112]
+   440→   440→    - LabelText
+   441→   441→      - StaticText "Email Address"
+   442→   442→    - textbox "Email Address" [required, ref=e113]
+   443→   443→    - LabelText
+   444→   444→      - StaticText "Your Message"
+   445→   445→    - textbox "Your Message" [required, ref=e114]
+   446→   446→    - button "Send Message" [ref=e115]
+   447→   447→- contentinfo
+   448→   448→  - link "Mouth Care Solutions Mouth Care Solutions Smile with us" [ref=e3]
+   449→   449→    - image "Mouth Care Solutions"
+   450→   450→    - heading "Mouth Care Solutions" [level=3, ref=e96]
+   451→   451→    - paragraph
+   452→   452→      - StaticText "Smile with us"
+   453→   453→  - paragraph
+   454→   454→    - StaticText "Your trusted dental care partner in Vijayawada. We offer comprehensive dental treatments with modern technology and a compassionate approach."
+   455→   455→  - heading "QUICK LINKS" [level=4, ref=e4]
+   456→   456→  - list
+   457→   457→    - listitem [level=1]
+   458→   458→      - link "Home" [ref=e116]
+   459→   459→    - listitem [level=1]
+   460→   460→      - link "About Us" [ref=e117]
+   461→   461→    - listitem [level=1]
+   462→   462→      - link "Our Doctors" [ref=e118]
+   463→   463→    - listitem [level=1]
+   464→   464→      - link "Services" [ref=e119]
+   465→   465→    - listitem [level=1]
+   466→   466→      - link "Blog" [ref=e120]
+   467→   467→    - listitem [level=1]
+   468→   468→      - link "Contact Us" [ref=e121]
+   469→   469→  - heading "OUR SERVICES" [level=4, ref=e5]
+   470→   470→  - list
+   471→   471→    - listitem [level=1]
+   472→   472→      - link "Root Canal Treatment" [ref=e122]
+   473→   473→    - listitem [level=1]
+   474→   474→      - link "Dental Implants" [ref=e123]
+   475→   475→    - listitem [level=1]
+   476→   476→      - link "Teeth Whitening" [ref=e124]
+   477→   477→    - listitem [level=1]
+   478→   478→      - link "Braces & Aligners" [ref=e125]
+   479→   479→    - listitem [level=1]
+   480→   480→      - link "Cosmetic Dentistry" [ref=e126]
+   481→   481→    - listitem [level=1]
+   482→   482→      - link "Pediatric Dentistry" [ref=e127]
+   483→   483→  - heading "CONTACT INFO" [level=4, ref=e6]
+   484→   484→  - paragraph
+   485→   485→    - strong
+   486→   486→      - StaticText "Address:"
+   487→   487→    - LineBreak "\n"
+   488→   488→    - StaticText "Door No. 29-28-23, Bhavani Complex, Suryaraopeta, Vijayawada, Andhra Pradesh 520002"
+   489→   489→  - paragraph
+   490→   490→    - strong
+   491→   491→      - StaticText "Phone:"
+   492→   492→    - LineBreak "\n"
+   493→   493→    - link "+91 98663 44866" [ref=e97]
+   494→   494→  - paragraph
+   495→   495→    - strong
+   496→   496→      - StaticText "Email:"
+   497→   497→    - LineBreak "\n"
+   498→   498→    - link "mouthcaresolutions@gmail.com" [ref=e98]
+   499→   499→  - paragraph
+   500→   500→    - strong
+   501→   501→      - StaticText "Hours:"
+   502→   502→    - LineBreak "\n"
+   503→   503→    - StaticText "Mon – Sat: 10:00 AM – 8:00 PM"
+   504→   504→    - LineBreak "\n"
+   505→   505→    - StaticText "Sunday: Closed"
+   506→   506→  - paragraph
+   507→   507→    - StaticText "© 2026 Mouth Care Solutions | Door No. 29-28-23, Bhavani Complex, Suryaraopeta, Vijayawada, Andhra Pradesh 520002"
+   508→   508→  - paragraph
+   509→   509→    - StaticText "Call: "
+   510→   510→    - link "+91 98663 44866" [ref=e99]
+   511→   511→    - StaticText " | Email: "
+   512→   512→    - link "mouthcaresolutions@gmail.com" [ref=e100]
+   513→   513→    - StaticText "| Open Mon–Sat 10AM–8PM"
+   514→   514→- link "Chat on WhatsApp" [ref=e1]
+   515→   515→  - StaticText "Chat Now"
+   516→   516→- region "Notifications (F8)" [ref=e2]
+   517→   517→  - list
+   518→   518→- button "Open Next.js Dev Tools" [expanded=false, ref=e135]
+   519→   519→  - image
+   520→   520→- alert

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="bg-teal-900 text-white">
@@ -5,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-3 mb-4">
+            <Link href="/" className="flex items-center gap-3 mb-4">
               <img
                 src="/mcs-logo.jpg"
                 alt="Mouth Care Solutions"
@@ -15,7 +17,7 @@ export default function Footer() {
                 <h3 className="text-lg font-bold">Mouth Care Solutions</h3>
                 <p className="text-teal-300 text-sm">Smile with us</p>
               </div>
-            </div>
+            </Link>
             <p className="text-teal-200 text-sm leading-relaxed">
               Your trusted dental care partner in Vijayawada. We offer
               comprehensive dental treatments with modern technology and a
@@ -29,22 +31,23 @@ export default function Footer() {
               Quick Links
             </h4>
             <ul className="space-y-2.5">
-              {["Home", "About Us", "Our Doctors", "Services", "Contact Us"].map(
-                (item) => (
-                  <li key={item}>
-                    <button
-                      onClick={() =>
-                        document
-                          .getElementById(item.toLowerCase().replace(/ /g, "-"))
-                          ?.scrollIntoView({ behavior: "smooth" })
-                      }
-                      className="text-teal-200 hover:text-white text-sm transition-colors"
-                    >
-                      {item}
-                    </button>
-                  </li>
-                )
-              )}
+              {[
+                { label: "Home", href: "/" },
+                { label: "About Us", href: "/about" },
+                { label: "Our Doctors", href: "/doctors" },
+                { label: "Services", href: "/services" },
+                { label: "Blog", href: "/blog" },
+                { label: "Contact Us", href: "/contact" },
+              ].map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="text-teal-200 hover:text-white text-sm transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -54,12 +57,12 @@ export default function Footer() {
               Our Services
             </h4>
             <ul className="space-y-2.5 text-sm text-teal-200">
-              <li>Root Canal Treatment</li>
-              <li>Dental Implants</li>
-              <li>Teeth Whitening</li>
-              <li>Braces & Aligners</li>
-              <li>Cosmetic Dentistry</li>
-              <li>Pediatric Dentistry</li>
+              <li><Link href="/services" className="hover:text-white transition-colors">Root Canal Treatment</Link></li>
+              <li><Link href="/services" className="hover:text-white transition-colors">Dental Implants</Link></li>
+              <li><Link href="/services" className="hover:text-white transition-colors">Teeth Whitening</Link></li>
+              <li><Link href="/services" className="hover:text-white transition-colors">Braces & Aligners</Link></li>
+              <li><Link href="/services" className="hover:text-white transition-colors">Cosmetic Dentistry</Link></li>
+              <li><Link href="/services" className="hover:text-white transition-colors">Pediatric Dentistry</Link></li>
             </ul>
           </div>
 
@@ -113,7 +116,7 @@ export default function Footer() {
             520002
           </p>
           <p>
-            Call: <a href="tel:+919866344866" className="hover:text-white">+91 98663 44866</a> | Email:{" "}
+            Call: <a href="tel:+919866344866" className="hover:text-white">+91 98663 44866</a> | Email: {" "}
             <a href="mailto:mouthcaresolutions@gmail.com" className="hover:text-white">
               mouthcaresolutions@gmail.com
             </a>{" "}

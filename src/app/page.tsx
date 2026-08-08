@@ -11,8 +11,8 @@ import TestimonialsSection from "@/components/mcs/TestimonialsSection";
 import AboutSection from "@/components/mcs/AboutSection";
 import DoctorsSection from "@/components/mcs/DoctorsSection";
 import ServicesSection from "@/components/mcs/ServicesSection";
-import ContactSection from "@/components/mcs/ContactSection";
 import BlogSection from "@/components/mcs/BlogSection";
+import ContactSection from "@/components/mcs/ContactSection";
 
 const sectionIds = ["home", "about", "doctors", "services", "blog", "contact"];
 
@@ -47,11 +47,8 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       <Navbar activeSection={activeSection} onNavigate={handleNavigate} />
       <main className="flex-1 pt-[88px]">
-        {/* Mobile top bar spacer for info */}
         <div className="md:hidden bg-teal-700 text-white text-xs text-center py-1.5 px-4">
-          <a href="tel:+919866344866" className="hover:underline">
-            Call: +91 98663 44866
-          </a>{" "}
+          <a href="tel:+919866344866" className="hover:underline">Call: +91 98663 44866</a>{" "}
           | Mon–Sat 10AM–8PM
         </div>
 
