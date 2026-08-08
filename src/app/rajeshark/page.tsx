@@ -100,7 +100,7 @@ export default function AdminPage() {
     const t = getToken();
     const u = localStorage.getItem("admin_user");
     if (!t || !u) {
-      router.push("/admin/login");
+      router.push("/rajeshark/login");
       return;
     }
     // Defer setState to avoid synchronous setState in effect
@@ -114,7 +114,7 @@ export default function AdminPage() {
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/stats", { headers: { Authorization: `Bearer ${getToken()}` } });
-      if (res.status === 401) { router.push("/admin/login"); return; }
+      if (res.status === 401) { router.push("/rajeshark/login"); return; }
       const data = await res.json();
       setStats(data);
     } catch (e) { console.error(e); }
@@ -126,7 +126,7 @@ export default function AdminPage() {
       if (postFilter !== "All") params.set("category", postFilter);
       if (postSearch) params.set("search", postSearch);
       const res = await fetch(`/api/admin/posts?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-      if (res.status === 401) { router.push("/admin/login"); return; }
+      if (res.status === 401) { router.push("/rajeshark/login"); return; }
       const data = await res.json();
       setPosts(data.posts || []);
       setPostTotal(data.total || 0);
@@ -136,7 +136,7 @@ export default function AdminPage() {
   const fetchBlogger = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/autoblogger", { headers: { Authorization: `Bearer ${getToken()}` } });
-      if (res.status === 401) { router.push("/admin/login"); return; }
+      if (res.status === 401) { router.push("/rajeshark/login"); return; }
       const data = await res.json();
       setBloggerConfig(data.config);
       setBloggerLogs(data.logs || []);
@@ -170,7 +170,7 @@ export default function AdminPage() {
     });
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_user");
-    router.push("/admin/login");
+    router.push("/rajeshark/login");
   };
 
   const deletePost = async (id: string) => {
