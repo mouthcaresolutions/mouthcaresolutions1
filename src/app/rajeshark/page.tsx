@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  LayoutDashboard, FileText, Bot, LogOut, Search, Plus, Trash2, Edit3, Play, Settings, Loader2, FileBarChart, Clock, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight, ExternalLink, BarChart3, Calendar, ArrowUpRight
+  LayoutDashboard, FileText, Bot, LogOut, Search, Plus, Trash2, Edit3, Play, Settings, Loader2, FileBarChart, Clock, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight, ExternalLink, BarChart3, Calendar, ArrowUpRight, Share2, Globe, Send, Eye, Key, AlertCircle
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -51,7 +51,7 @@ interface AutoBloggerLog {
   ranAt: string;
 }
 
-type Tab = "dashboard" | "posts" | "autoblogger" | "newpost";
+type Tab = "dashboard" | "posts" | "autoblogger" | "newpost" | "social";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -93,6 +93,13 @@ export default function AdminPage() {
 
   // Edit post state
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+
+  // Social media state
+  const [socialConfigs, setSocialConfigs] = useState<any[]>([]);
+  const [socialLogs, setSocialLogs] = useState<any[]>([]);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [testResult, setTestResult] = useState<string>("");
+  const [autoShareLoading, setAutoShareLoading] = useState(false);
 
   const getToken = useCallback(() => localStorage.getItem("admin_token") || "", []);
 
@@ -144,6 +151,16 @@ export default function AdminPage() {
     } catch (e) { console.error(e); }
   }, [getToken, router]);
 
+  const fetchSocial = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/social", { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+      const data = await res.json();
+      setSocialConfigs(data.configs || []);
+      setSocialLogs(data.logs || []);
+    } catch (e) { console.error(e); }
+  }, [getToken, router]);
+
   useEffect(() => {
     if (!token) return;
     const load = async () => { try { await fetchStats(); } catch(e) { /* ignore */ } };
@@ -159,6 +176,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (!token || activeTab !== "autoblogger") return;
     const load = async () => { try { await fetchBlogger(); } catch(e) { /* ignore */ } };
+    load();
+  }, [token, activeTab]);
+
+  useEffect(() => {
+    if (!token || activeTab !== "social") return;
+    const load = async () => { try { await fetchSocial(); } catch(e) { /* ignore */ } };
     load();
   }, [token, activeTab]);
 
@@ -275,6 +298,67 @@ export default function AdminPage() {
     } catch (e) { console.error(e); }
   };
 
+  // Social media functions
+  const saveSocialConfig = async (platform: string, updates: any) => {
+    setSocialLoading(true);
+    try {
+      const res = await fetch("/api/admin/social", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "saveConfig", platform, ...updates }),
+      });
+      const data = await res.json();
+      if (data.success) fetchSocial();
+      else alert(data.error || "Failed to save");
+    } catch (e) { console.error(e); }
+    setSocialLoading(false);
+  };
+
+  const testSocialConnection = async (platform: string) => {
+    setTestResult(`Testing ${platform}...`);
+    try {
+      const res = await fetch("/api/admin/social", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "testConnection", platform }),
+      });
+      const data = await res.json();
+      setTestResult(data.success ? `${platform}: Connection successful! Post ID: ${data.postId || 'N/A'}` : `${platform}: Failed - ${data.error}`);
+      fetchSocial();
+    } catch (e) { setTestResult(`Test failed: ${e}`); }
+    setTimeout(() => setTestResult(""), 8000);
+  };
+
+  const sharePostToSocial = async (postId: string, platforms: string[]) => {
+    setSocialLoading(true);
+    try {
+      const res = await fetch("/api/admin/social", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sharePost", postId, platforms }),
+      });
+      const data = await res.json();
+      alert(`Shared to ${data.shared}/${data.total} platforms`);
+      fetchSocial();
+    } catch (e) { alert("Share failed"); }
+    setSocialLoading(false);
+  };
+
+  const autoShareRecent = async (count: number = 3) => {
+    setAutoShareLoading(true);
+    try {
+      const res = await fetch("/api/admin/social", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "autoShare", count }),
+      });
+      const data = await res.json();
+      alert(`Auto-shared: ${data.shared} posts across ${data.total} attempts`);
+      fetchSocial();
+    } catch (e) { alert("Auto-share failed"); }
+    setAutoShareLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -288,6 +372,7 @@ export default function AdminPage() {
     { id: "posts" as Tab, label: "All Posts", icon: FileText },
     { id: "newpost" as Tab, label: "New Post", icon: Plus },
     { id: "autoblogger" as Tab, label: "Auto Blogger", icon: Bot },
+    { id: "social" as Tab, label: "Social Media", icon: Share2 },
   ];
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -370,6 +455,7 @@ export default function AdminPage() {
               {activeTab === "posts" && "All Posts"}
               {activeTab === "newpost" && "Create New Post"}
               {activeTab === "autoblogger" && "Auto Blogger"}
+              {activeTab === "social" && "Social Media"}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -627,8 +713,315 @@ export default function AdminPage() {
               </Card>
             </div>
           )}
+          {/* ==================== SOCIAL MEDIA TAB ==================== */}
+          {activeTab === "social" && (
+            <div className="space-y-6">
+              {/* Auto-Share Banner */}
+              <Card className="bg-gradient-to-r from-teal-600 to-emerald-600 border-0 text-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-bold flex items-center gap-2"><Send className="h-5 w-5" /> Auto-Share to All Platforms</h3>
+                      <p className="text-teal-100 text-sm mt-1">Automatically share latest blog posts to all enabled social media accounts. Every auto-generated blog post will also be shared automatically.</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button onClick={() => autoShareRecent(1)} disabled={autoShareLoading} variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                        {autoShareLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                        Share 1 Latest
+                      </Button>
+                      <Button onClick={() => autoShareRecent(3)} disabled={autoShareLoading} variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                        {autoShareLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                        Share 3 Latest
+                      </Button>
+                    </div>
+                  </div>
+                  {testResult && (
+                    <div className={`mt-4 p-3 rounded-lg text-sm ${testResult.includes("successful") ? "bg-green-500/20 text-green-100" : "bg-amber-500/20 text-amber-100"}`}>
+                      {testResult}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Platform Configurations */}
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-5 w-5" /> Platform Configuration</CardTitle><CardDescription>Connect your social media accounts. Each auto-generated blog post will be shared to all enabled platforms.</CardDescription></CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Facebook */}
+                  <PlatformConfigCard
+                    platform="facebook"
+                    config={socialConfigs.find((c: any) => c.platform === 'facebook')}
+                    icon={"\ud83d\udccd"}
+                    color="bg-blue-500"
+                    fields={[
+                      { key: 'accessToken', label: 'Page Access Token', placeholder: 'EAAxxxxx... (Facebook Page Access Token)', type: 'password' },
+                      { key: 'pageId', label: 'Facebook Page ID', placeholder: 'e.g., 123456789012345' },
+                    ]}
+                    onSave={saveSocialConfig}
+                    onTest={testSocialConnection}
+                    loading={socialLoading}
+                    setupGuide={
+                      '1. Go to developers.facebook.com -> My Apps -> Your App\n' +
+                      '2. Add "Facebook Login" and "Pages" products\n' +
+                      '3. Under Permissions, add: pages_manage_posts, pages_read_engagement\n' +
+                      '4. Generate a Page Access Token with pages_manage_posts permission\n' +
+                      '5. Paste the token and your Page ID above'
+                    }
+                  />
+
+                  {/* Instagram */}
+                  <PlatformConfigCard
+                    platform="instagram"
+                    config={socialConfigs.find((c: any) => c.platform === 'instagram')}
+                    icon={"\ud83d\udcf8"}
+                    color="bg-pink-500"
+                    fields={[
+                      { key: 'accessToken', label: 'Access Token (from Facebook)', placeholder: 'EAAxxxxx... (Use same as Facebook token)', type: 'password' },
+                      { key: 'accountId', label: 'Instagram Business Account ID', placeholder: 'e.g., 17841400123456789' },
+                    ]}
+                    onSave={saveSocialConfig}
+                    onTest={testSocialConnection}
+                    loading={socialLoading}
+                    setupGuide={
+                      '1. Your Instagram must be a Business/Creator account linked to a Facebook Page\n' +
+                      '2. Use the same Facebook Page Access Token as above\n' +
+                      '3. Get your Instagram Business Account ID from Facebook Graph API Explorer:\n' +
+                      '   GET /{page-id}?fields=instagram_business_account\n' +
+                      '4. Add content_publishing permission to your token\n' +
+                      '5. Paste the token and Account ID above'
+                    }
+                  />
+
+                  {/* Google Business Profile */}
+                  <PlatformConfigCard
+                    platform="google_business"
+                    config={socialConfigs.find((c: any) => c.platform === 'google_business')}
+                    icon={"\ud83c\udf10"}
+                    color="bg-red-500"
+                    fields={[
+                      { key: 'accessToken', label: 'Google OAuth2 Access Token', placeholder: 'ya29.xxxxx... (Google OAuth Token)', type: 'password' },
+                      { key: 'accountId', label: 'Google Account ID', placeholder: 'e.g., 123456789' },
+                      { key: 'pageId', label: 'Location ID', placeholder: 'e.g., locations/12345678901234567890' },
+                    ]}
+                    onSave={saveSocialConfig}
+                    onTest={testSocialConnection}
+                    loading={socialLoading}
+                    setupGuide={
+                      '1. Go to console.cloud.google.com -> Create Project\n' +
+                      '2. Enable "Google My Business API"\n' +
+                      '3. Create OAuth 2.0 credentials\n' +
+                      '4. Add scope: https://www.googleapis.com/auth/business.manage\n' +
+                      '5. Get access token, Account ID, and Location ID from Google Business Profile\n' +
+                      '6. Paste all three values above'
+                    }
+                  />
+
+                  {/* Twitter/X */}
+                  <PlatformConfigCard
+                    platform="twitter"
+                    config={socialConfigs.find((c: any) => c.platform === 'twitter')}
+                    icon={"\ud83d\udc26"}
+                    color="bg-gray-800"
+                    fields={[
+                      { key: 'accessToken', label: 'Twitter API Bearer Token', placeholder: 'AAAAAAAAxxxxxx... (Twitter API v2 Bearer Token)', type: 'password' },
+                    ]}
+                    onSave={saveSocialConfig}
+                    onTest={testSocialConnection}
+                    loading={socialLoading}
+                    setupGuide={
+                      '1. Go to developer.twitter.com -> Create Project & App\n' +
+                      '2. Set User authentication settings (OAuth 2.0)\n' +
+                      '3. Go to Keys and Tokens -> Generate Bearer Token\n' +
+                      '4. For posting tweets, you need OAuth 1.0a credentials\n' +
+                      '5. Paste the Bearer Token above'
+                    }
+                  />
+
+                  {/* LinkedIn */}
+                  <PlatformConfigCard
+                    platform="linkedin"
+                    config={socialConfigs.find((c: any) => c.platform === 'linkedin')}
+                    icon={"\ud83d\u0e17"}
+                    color="bg-blue-700"
+                    fields={[
+                      { key: 'accessToken', label: 'LinkedIn Access Token', placeholder: 'AQVxxxxx... (LinkedIn OAuth2 Token)', type: 'password' },
+                      { key: 'accountId', label: 'LinkedIn Person ID (urn:li:person:XXXXX)', placeholder: 'e.g., ABC123xyz (just the ID part)' },
+                    ]}
+                    onSave={saveSocialConfig}
+                    onTest={testSocialConnection}
+                    loading={socialLoading}
+                    setupGuide={
+                      '1. Go to developer.linkedin.com -> Create App\n' +
+                      '2. Add "Share on LinkedIn" and "Sign In with LinkedIn" products\n' +
+                      '3. Request r_liteprofile, r_emailprofile, w_member_social permissions\n' +
+                      '4. Get OAuth 2.0 Access Token (3-legged for posting)\n' +
+                      '5. Get your Person ID from: https://api.linkedin.com/v2/me\n' +
+                      '6. Paste token and Person ID above'
+                    }
+                  />
+
+                  {/* WhatsApp (Share Links) */}
+                  <PlatformConfigCard
+                    platform="whatsapp"
+                    config={socialConfigs.find((c: any) => c.platform === 'whatsapp')}
+                    icon={"\ud83d\udcac"}
+                    color="bg-green-500"
+                    fields={[]}
+                    onSave={saveSocialConfig}
+                    onTest={testSocialConnection}
+                    loading={socialLoading}
+                    isWhatsApp={true}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Share History */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-base">Share History</CardTitle><Button variant="outline" size="sm" onClick={fetchSocial}><RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh</Button></CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="text-left p-3 font-medium text-gray-500">Date</th>
+                          <th className="text-left p-3 font-medium text-gray-500">Platform</th>
+                          <th className="text-left p-3 font-medium text-gray-500">Post Title</th>
+                          <th className="text-left p-3 font-medium text-gray-500">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {socialLogs.map((log: any) => (
+                          <tr key={log.id} className="border-b last:border-0 hover:bg-gray-50">
+                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatDate(log.postedAt)}</td>
+                            <td className="p-3"><Badge variant="secondary" className="text-xs">{log.platform}</Badge></td>
+                            <td className="p-3 text-gray-800 max-w-xs truncate">{log.title}</td>
+                            <td className="p-3">
+                              {log.status === 'success' ? (
+                                <span className="text-green-600 flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> Success</span>
+                              ) : (
+                                <span className="text-red-600 flex items-center gap-1" title={log.response || ''}><XCircle className="h-3.5 w-3.5" /> Failed</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {socialLogs.length === 0 && (
+                          <tr><td colSpan={4} className="p-6 text-center text-gray-400">No social shares yet. Configure a platform above to get started.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
     </div>
+  );
+}
+
+// ==================== PLATFORM CONFIG CARD COMPONENT ====================
+function PlatformConfigCard({ platform, config, icon, color, fields, onSave, onTest, loading, setupGuide, isWhatsApp = false }: {
+  platform: string;
+  config: any;
+  icon: string;
+  color: string;
+  fields: { key: string; label: string; placeholder: string; type?: string }[];
+  onSave: (platform: string, updates: any) => void;
+  onTest: (platform: string) => void;
+  loading: boolean;
+  setupGuide?: string;
+  isWhatsApp?: boolean;
+}) {
+  const [showGuide, setShowGuide] = useState(false);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+
+  const displayName = platform === 'google_business' ? 'Google Business Profile' : platform.charAt(0).toUpperCase() + platform.slice(1);
+  const enabled = config?.enabled || false;
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className={`flex items-center justify-between p-4 ${enabled ? color + '/10' : 'bg-gray-50'}`}>
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{icon}</span>
+          <div>
+            <h4 className="font-semibold text-gray-900">{displayName}</h4>
+            <div className="flex items-center gap-3 mt-0.5">
+              <span className={`text-xs px-2 py-0.5 rounded-full ${enabled ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                {enabled ? 'Connected' : 'Not Connected'}
+              </span>
+              {config?.totalPosts > 0 && <span className="text-xs text-gray-400">{config.totalPosts} posts shared</span>}
+              {config?.lastPostedAt && <span className="text-xs text-gray-400">Last: {new Date(config.lastPostedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Switch checked={enabled} onCheckedChange={(v) => onSave(platform, { enabled: v })} />
+        </div>
+      </div>
+
+      {enabled && !isWhatsApp && (
+        <div className="p-4 border-t border-gray-100 bg-white space-y-3">
+          {fields.map(field => (
+            <div key={field.key}>
+              <Label className="text-xs text-gray-500 flex items-center gap-1"><Key className="h-3 w-3" /> {field.label}</Label>
+              <Input
+                type={field.type || 'text'}
+                className="mt-1 font-mono text-sm"
+                placeholder={field.placeholder}
+                defaultValue={field.type === 'password' ? '' : (config?.[field.key] || '')}
+                onChange={(e) => setFormValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+              />
+            </div>
+          ))}
+          {config?.lastError && (
+            <div className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs text-red-600">
+              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{config.lastError}</span>
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <Button size="sm" onClick={() => {
+              const updates: any = { enabled: true };
+              Object.entries(formValues).forEach(([k, v]) => { if (v) updates[k] = v; });
+              onSave(platform, updates);
+            }} disabled={loading} className="bg-teal-600 hover:bg-teal-700 text-white">
+              {loading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+              Save & Connect
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onTest(platform)} disabled={loading}>
+              <Send className="h-3.5 w-3.5 mr-1" /> Test Post
+            </Button>
+            {setupGuide && (
+              <Button size="sm" variant="ghost" onClick={() => setShowGuide(!showGuide)}>
+                <Eye className="h-3.5 w-3.5 mr-1" /> {showGuide ? 'Hide' : 'Setup'} Guide
+              </Button>
+            )}
+          </div>
+          {showGuide && setupGuide && (
+            <pre className="mt-3 p-3 bg-gray-50 rounded-lg text-xs text-gray-600 whitespace-pre-wrap font-mono border">
+              {setupGuide}
+            </pre>
+          )}
+        </div>
+      )}
+
+      {enabled && isWhatsApp && (
+        <div className="p-4 border-t border-gray-100 bg-white">
+          <p className="text-sm text-gray-600">WhatsApp does not support automated posting via API. Blog posts will generate <strong>shareable WhatsApp links</strong> that you can use in your WhatsApp Status, Groups, or broadcast lists.</p>
+          <p className="text-xs text-gray-400 mt-2">Every blog post automatically gets a WhatsApp share link. You can also share manually from the Posts tab.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Save({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+      <polyline points="17,21 17,13 7,13 7,21"/>
+      <polyline points="7,3 7,8 15,8"/>
+    </svg>
   );
 }

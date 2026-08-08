@@ -41,6 +41,35 @@ model AutoBloggerLog {
   ranAt       DateTime @default(now())
 }
 
+model SocialMediaConfig {
+  id          String   @id @default(cuid())
+  platform    String   @unique
+  enabled     Boolean  @default(false)
+  accessToken  String?
+  refreshToken String?
+  pageId      String?
+  accountId   String?
+  extraConfig String? // JSON string for platform-specific settings
+  lastPostedAt DateTime?
+  totalPosts  Int      @default(0)
+  lastError   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SocialPostLog {
+  id          String   @id @default(cuid())
+  platform    String
+  blogPostId  String?
+  blogPost   BlogPost? @relation(fields: [blogPostId], references: [id])
+  title       String
+  postUrl     String?
+  socialPostId String?
+  status      String   @default("pending")
+  response    String?
+  postedAt    DateTime @default(now())
+}
+
 model BlogPost {
   id          String   @id @default(cuid())
   slug        String   @unique
@@ -56,6 +85,7 @@ model BlogPost {
   scheduledAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  socialPosts SocialPostLog[]
 
   @@index([category])
   @@index([slug])

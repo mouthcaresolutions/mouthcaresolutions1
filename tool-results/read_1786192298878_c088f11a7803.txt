@@ -1,0 +1,635 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useCallback } from "react";
+     4→import { useRouter } from "next/navigation";
+     5→import { Button } from "@/components/ui/button";
+     6→import { Input } from "@/components/ui/input";
+     7→import { Label } from "@/components/ui/label";
+     8→import { Textarea } from "@/components/ui/textarea";
+     9→import { Badge } from "@/components/ui/badge";
+    10→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+    11→import { Switch } from "@/components/ui/switch";
+    12→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    13→import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+    14→import { ScrollArea } from "@/components/ui/scroll-area";
+    15→import {
+    16→  LayoutDashboard, FileText, Bot, LogOut, Search, Plus, Trash2, Edit3, Play, Settings, Loader2, FileBarChart, Clock, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight, ExternalLink, BarChart3, Calendar, ArrowUpRight
+    17→} from "lucide-react";
+    18→
+    19→const CATEGORIES = [
+    20→  "All",
+    21→  "General Dentistry",
+    22→  "Cosmetic Dentistry",
+    23→  "Oral Hygiene",
+    24→  "Pediatric Dentistry",
+    25→  "Implants & Prosthodontics",
+    26→  "Orthodontics",
+    27→  "Preventive Dental Care",
+    28→];
+    29→
+    30→interface Post {
+    31→  id: string;
+    32→  slug: string;
+    33→  title: string;
+    34→  content: string;
+    35→  excerpt: string | null;
+    36→  category: string;
+    37→  keywords: string | null;
+    38→  status: string;
+    39→  scheduledAt: string;
+    40→  createdAt: string;
+    41→  updatedAt: string;
+    42→}
+    43→
+    44→interface AutoBloggerLog {
+    45→  id: string;
+    46→  status: string;
+    47→  postsCreated: number;
+    48→  postsFailed: number;
+    49→  error: string | null;
+    50→  duration: number;
+    51→  ranAt: string;
+    52→}
+    53→
+    54→type Tab = "dashboard" | "posts" | "autoblogger" | "newpost";
+    55→
+    56→export default function AdminPage() {
+    57→  const router = useRouter();
+    58→  const [token, setToken] = useState("");
+    59→  const [user, setUser] = useState<{ username: string; name: string; role: string } | null>(null);
+    60→  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+    61→  const [loading, setLoading] = useState(true);
+    62→  const [mobileSidebar, setMobileSidebar] = useState(false);
+    63→
+    64→  // Dashboard state
+    65→  const [stats, setStats] = useState<any>(null);
+    66→
+    67→  // Posts state
+    68→  const [posts, setPosts] = useState<Post[]>([]);
+    69→  const [postTotal, setPostTotal] = useState(0);
+    70→  const [postPage, setPostPage] = useState(1);
+    71→  const [postFilter, setPostFilter] = useState("All");
+    72→  const [postSearch, setPostSearch] = useState("");
+    73→  const [postSearchInput, setPostSearchInput] = useState("");
+    74→
+    75→  // Auto-blogger state
+    76→  const [bloggerConfig, setBloggerConfig] = useState<any>(null);
+    77→  const [bloggerLogs, setBloggerLogs] = useState<AutoBloggerLog[]>([]);
+    78→  const [bloggerTreatments, setBloggerTreatments] = useState<string[]>([]);
+    79→  const [generating, setGenerating] = useState(false);
+    80→  const [genProgress, setGenProgress] = useState("");
+    81→  const [bulkTreatment, setBulkTreatment] = useState("");
+    82→  const [bulkCount, setBulkCount] = useState(10);
+    83→  const [bulkGenerating, setBulkGenerating] = useState(false);
+    84→
+    85→  // New post state
+    86→  const [newTitle, setNewTitle] = useState("");
+    87→  const [newContent, setNewContent] = useState("");
+    88→  const [newExcerpt, setNewExcerpt] = useState("");
+    89→  const [newCategory, setNewCategory] = useState("");
+    90→  const [newKeywords, setNewKeywords] = useState("");
+    91→  const [newStatus, setNewStatus] = useState("published");
+    92→  const [savingPost, setSavingPost] = useState(false);
+    93→
+    94→  // Edit post state
+    95→  const [editingPost, setEditingPost] = useState<Post | null>(null);
+    96→
+    97→  const getToken = useCallback(() => localStorage.getItem("admin_token") || "", []);
+    98→
+    99→  useEffect(() => {
+   100→    const t = getToken();
+   101→    const u = localStorage.getItem("admin_user");
+   102→    if (!t || !u) {
+   103→      router.push("/rajeshark/login");
+   104→      return;
+   105→    }
+   106→    // Defer setState to avoid synchronous setState in effect
+   107→    queueMicrotask(() => {
+   108→      setToken(t);
+   109→      setUser(JSON.parse(u));
+   110→      setLoading(false);
+   111→    });
+   112→  }, [getToken, router]);
+   113→
+   114→  const fetchStats = useCallback(async () => {
+   115→    try {
+   116→      const res = await fetch("/api/admin/stats", { headers: { Authorization: `Bearer ${getToken()}` } });
+   117→      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+   118→      const data = await res.json();
+   119→      setStats(data);
+   120→    } catch (e) { console.error(e); }
+   121→  }, [getToken, router]);
+   122→
+   123→  const fetchPosts = useCallback(async () => {
+   124→    try {
+   125→      const params = new URLSearchParams({ page: postPage.toString(), limit: "15" });
+   126→      if (postFilter !== "All") params.set("category", postFilter);
+   127→      if (postSearch) params.set("search", postSearch);
+   128→      const res = await fetch(`/api/admin/posts?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+   129→      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+   130→      const data = await res.json();
+   131→      setPosts(data.posts || []);
+   132→      setPostTotal(data.total || 0);
+   133→    } catch (e) { console.error(e); }
+   134→  }, [getToken, router, postPage, postFilter, postSearch]);
+   135→
+   136→  const fetchBlogger = useCallback(async () => {
+   137→    try {
+   138→      const res = await fetch("/api/admin/autoblogger", { headers: { Authorization: `Bearer ${getToken()}` } });
+   139→      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+   140→      const data = await res.json();
+   141→      setBloggerConfig(data.config);
+   142→      setBloggerLogs(data.logs || []);
+   143→      setBloggerTreatments(data.treatments || []);
+   144→    } catch (e) { console.error(e); }
+   145→  }, [getToken, router]);
+   146→
+   147→  useEffect(() => {
+   148→    if (!token) return;
+   149→    const load = async () => { try { await fetchStats(); } catch(e) { /* ignore */ } };
+   150→    load();
+   151→  }, [token]);
+   152→
+   153→  useEffect(() => {
+   154→    if (!token || activeTab !== "posts") return;
+   155→    const load = async () => { try { await fetchPosts(); } catch(e) { /* ignore */ } };
+   156→    load();
+   157→  }, [token, activeTab]);
+   158→
+   159→  useEffect(() => {
+   160→    if (!token || activeTab !== "autoblogger") return;
+   161→    const load = async () => { try { await fetchBlogger(); } catch(e) { /* ignore */ } };
+   162→    load();
+   163→  }, [token, activeTab]);
+   164→
+   165→  const logout = () => {
+   166→    fetch("/api/admin/auth", {
+   167→      method: "POST",
+   168→      headers: { "Content-Type": "application/json" },
+   169→      body: JSON.stringify({ action: "logout", token }),
+   170→    });
+   171→    localStorage.removeItem("admin_token");
+   172→    localStorage.removeItem("admin_user");
+   173→    router.push("/rajeshark/login");
+   174→  };
+   175→
+   176→  const deletePost = async (id: string) => {
+   177→    if (!confirm("Delete this post?")) return;
+   178→    await fetch(`/api/admin/posts?id=${id}`, {
+   179→      method: "DELETE",
+   180→      headers: { Authorization: `Bearer ${getToken()}` },
+   181→    });
+   182→    fetchPosts();
+   183→  };
+   184→
+   185→  const togglePostStatus = async (post: Post) => {
+   186→    const newStatus = post.status === "published" ? "draft" : "published";
+   187→    await fetch("/api/admin/posts", {
+   188→      method: "PUT",
+   189→      headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   190→      body: JSON.stringify({ id: post.id, status: newStatus }),
+   191→    });
+   192→    fetchPosts();
+   193→  };
+   194→
+   195→  const saveNewPost = async () => {
+   196→    if (!newTitle || !newContent || !newCategory) return;
+   197→    setSavingPost(true);
+   198→    try {
+   199→      const res = await fetch("/api/admin/posts", {
+   200→        method: "POST",
+   201→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   202→        body: JSON.stringify({
+   203→          title: newTitle, content: newContent, excerpt: newExcerpt,
+   204→          category: newCategory, keywords: newKeywords, status: newStatus,
+   205→        }),
+   206→      });
+   207→      const data = await res.json();
+   208→      if (data.success) {
+   209→        setNewTitle(""); setNewContent(""); setNewExcerpt("");
+   210→        setNewKeywords(""); setNewStatus("published");
+   211→        setActiveTab("posts");
+   212→        alert("Post created!");
+   213→      }
+   214→    } catch (e) { console.error(e); }
+   215→    setSavingPost(false);
+   216→  };
+   217→
+   218→  const saveEditPost = async () => {
+   219→    if (!editingPost) return;
+   220→    try {
+   221→      await fetch("/api/admin/posts", {
+   222→        method: "PUT",
+   223→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   224→        body: JSON.stringify(editingPost),
+   225→      });
+   226→      setEditingPost(null);
+   227→      fetchPosts();
+   228→    } catch (e) { console.error(e); }
+   229→  };
+   230→
+   231→  const generateNow = async (count: number = 3) => {
+   232→    setGenerating(true);
+   233→    setGenProgress(`Generating ${count} articles...`);
+   234→    try {
+   235→      const res = await fetch("/api/admin/autoblogger", {
+   236→        method: "POST",
+   237→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   238→        body: JSON.stringify({ action: "generateNow", count }),
+   239→      });
+   240→      const data = await res.json();
+   241→      setGenProgress(`Done! Created: ${data.postsCreated}, Failed: ${data.postsFailed}, Time: ${data.duration}s`);
+   242→      fetchBlogger();
+   243→    } catch (e) { setGenProgress("Generation failed"); }
+   244→    setGenerating(false);
+   245→    setTimeout(() => setGenProgress(""), 5000);
+   246→  };
+   247→
+   248→  const bulkGenerate = async () => {
+   249→    if (!bulkTreatment) return;
+   250→    setBulkGenerating(true);
+   251→    setGenProgress(`Generating ${bulkCount} articles for ${bulkTreatment}...`);
+   252→    try {
+   253→      const res = await fetch("/api/admin/autoblogger", {
+   254→        method: "POST",
+   255→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   256→        body: JSON.stringify({ action: "bulkGenerate", treatmentName: bulkTreatment, count: bulkCount }),
+   257→      });
+   258→      const data = await res.json();
+   259→      setGenProgress(`Done! Created: ${data.postsCreated}, Failed: ${data.postsFailed}, Time: ${data.duration}s`);
+   260→      fetchBlogger();
+   261→    } catch (e) { setGenProgress("Generation failed"); }
+   262→    setBulkGenerating(false);
+   263→    setTimeout(() => setGenProgress(""), 5000);
+   264→  };
+   265→
+   266→  const updateBloggerConfig = async (updates: any) => {
+   267→    try {
+   268→      const res = await fetch("/api/admin/autoblogger", {
+   269→        method: "POST",
+   270→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   271→        body: JSON.stringify({ action: "updateConfig", ...updates }),
+   272→      });
+   273→      const data = await res.json();
+   274→      if (data.success) setBloggerConfig(data.config);
+   275→    } catch (e) { console.error(e); }
+   276→  };
+   277→
+   278→  if (loading) {
+   279→    return (
+   280→      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+   281→        <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
+   282→      </div>
+   283→    );
+   284→  }
+   285→
+   286→  const sidebarItems = [
+   287→    { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
+   288→    { id: "posts" as Tab, label: "All Posts", icon: FileText },
+   289→    { id: "newpost" as Tab, label: "New Post", icon: Plus },
+   290→    { id: "autoblogger" as Tab, label: "Auto Blogger", icon: Bot },
+   291→  ];
+   292→
+   293→  const formatDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+   294→
+   295→  return (
+   296→    <div className="min-h-screen bg-gray-50 flex">
+   297→      {/* Sidebar - Desktop */}
+   298→      <aside className="hidden lg:flex lg:w-64 bg-teal-900 text-white flex-col fixed inset-y-0 left-0 z-40">
+   299→        <div className="p-5 border-b border-teal-800">
+   300→          <h2 className="text-lg font-bold">MCS Admin</h2>
+   301→          <p className="text-teal-300 text-xs">Content Dashboard</p>
+   302→        </div>
+   303→        <nav className="flex-1 p-3 space-y-1">
+   304→          {sidebarItems.map((item) => (
+   305→            <button
+   306→              key={item.id}
+   307→              onClick={() => setActiveTab(item.id)}
+   308→              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+   309→                activeTab === item.id
+   310→                  ? "bg-teal-700 text-white"
+   311→                  : "text-teal-200 hover:bg-teal-800 hover:text-white"
+   312→              }`}
+   313→            >
+   314→              <item.icon className="h-4 w-4" />
+   315→              {item.label}
+   316→            </button>
+   317→          ))}
+   318→        </nav>
+   319→        <div className="p-4 border-t border-teal-800">
+   320→          <div className="flex items-center justify-between mb-3">
+   321→            <span className="text-sm text-teal-200">{user?.name || "Admin"}</span>
+   322→            <Button variant="ghost" size="sm" onClick={logout} className="text-teal-300 hover:text-white hover:bg-teal-800">
+   323→              <LogOut className="h-4 w-4" />
+   324→            </Button>
+   325→          </div>
+   326→          <a href="/" className="flex items-center gap-1 text-xs text-teal-400 hover:text-teal-200">
+   327→            <ExternalLink className="h-3 w-3" /> View Website
+   328→          </a>
+   329→        </div>
+   330→      </aside>
+   331→
+   332→      {/* Mobile sidebar overlay */}
+   333→      {mobileSidebar && (
+   334→        <div className="fixed inset-0 z-50 lg:hidden">
+   335→          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileSidebar(false)} />
+   336→          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-teal-900 text-white p-5">
+   337→            <h2 className="text-lg font-bold mb-4">MCS Admin</h2>
+   338→            <nav className="space-y-1">
+   339→              {sidebarItems.map((item) => (
+   340→                <button
+   341→                  key={item.id}
+   342→                  onClick={() => { setActiveTab(item.id); setMobileSidebar(false); }}
+   343→                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium ${
+   344→                    activeTab === item.id ? "bg-teal-700" : "text-teal-200"
+   345→                  }`}
+   346→                >
+   347→                  <item.icon className="h-4 w-4" /> {item.label}
+   348→                </button>
+   349→              ))}
+   350→            </nav>
+   351→            <button onClick={logout} className="mt-6 text-sm text-teal-300 flex items-center gap-2">
+   352→              <LogOut className="h-4 w-4" /> Logout
+   353→            </button>
+   354→          </aside>
+   355→        </div>
+   356→      )}
+   357→
+   358→      {/* Main Content */}
+   359→      <main className="flex-1 lg:ml-64 min-h-screen">
+   360→        {/* Top bar */}
+   361→        <header className="bg-white border-b border-gray-200 px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+   362→          <div className="flex items-center gap-3">
+   363→            <button className="lg:hidden p-2 hover:bg-gray-100 rounded-md" onClick={() => setMobileSidebar(true)}>
+   364→              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   365→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+   366→              </svg>
+   367→            </button>
+   368→            <h1 className="text-xl font-bold text-gray-900">
+   369→              {activeTab === "dashboard" && "Dashboard"}
+   370→              {activeTab === "posts" && "All Posts"}
+   371→              {activeTab === "newpost" && "Create New Post"}
+   372→              {activeTab === "autoblogger" && "Auto Blogger"}
+   373→            </h1>
+   374→          </div>
+   375→          <div className="flex items-center gap-3">
+   376→            <a href="/" target="_blank" className="text-sm text-teal-600 hover:text-teal-800 hidden sm:flex items-center gap-1">
+   377→              <ExternalLink className="h-3.5 w-3.5" /> View Site
+   378→            </a>
+   379→            <Button variant="outline" size="sm" onClick={logout}>
+   380→              <LogOut className="h-4 w-4 mr-1" /> Logout
+   381→            </Button>
+   382→          </div>
+   383→        </header>
+   384→
+   385→        <div className="p-4 lg:p-8">
+   386→          {/* ==================== DASHBOARD TAB ==================== */}
+   387→          {activeTab === "dashboard" && stats && (
+   388→            <div className="space-y-6">
+   389→              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   390→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Total Posts</p><p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalPosts}</p></div><FileBarChart className="h-10 w-10 text-teal-100" /></div></CardContent></Card>
+   391→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Published</p><p className="text-3xl font-bold text-green-600 mt-1">{stats.publishedPosts}</p></div><CheckCircle className="h-10 w-10 text-green-100" /></div></CardContent></Card>
+   392→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Drafts</p><p className="text-3xl font-bold text-amber-600 mt-1">{stats.draftPosts}</p></div><FileText className="h-10 w-10 text-amber-100" /></div></CardContent></Card>
+   393→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">This Week</p><p className="text-3xl font-bold text-blue-600 mt-1">{stats.recentWeekPosts}</p></div><ArrowUpRight className="h-10 w-10 text-blue-100" /></div></CardContent></Card>
+   394→              </div>
+   395→
+   396→              <div className="grid lg:grid-cols-2 gap-6">
+   397→                <Card>
+   398→                  <CardHeader><CardTitle className="text-base">Posts by Category</CardTitle></CardHeader>
+   399→                  <CardContent>
+   400→                    <div className="space-y-3">
+   401→                      {(stats.postsByCategory || []).map((c: any) => (
+   402→                        <div key={c.category} className="flex items-center justify-between">
+   403→                          <span className="text-sm text-gray-700">{c.category}</span>
+   404→                          <div className="flex items-center gap-3">
+   405→                            <div className="w-32 bg-gray-100 rounded-full h-2">
+   406→                              <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.min(100, (c._count.category / (stats.totalPosts || 1)) * 100)}%` }} />
+   407→                            </div>
+   408→                            <span className="text-sm font-medium text-gray-600 w-8 text-right">{c._count.category}</span>
+   409→                          </div>
+   410→                        </div>
+   411→                      ))}
+   412→                    </div>
+   413→                  </CardContent>
+   414→                </Card>
+   415→
+   416→                <Card>
+   417→                  <CardHeader><CardTitle className="text-base">Recent Posts</CardTitle></CardHeader>
+   418→                  <CardContent>
+   419→                    <div className="space-y-3">
+   420→                      {(stats.recentPosts || []).map((p: any) => (
+   421→                        <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+   422→                          <div className="min-w-0 flex-1 mr-3">
+   423→                            <p className="text-sm font-medium text-gray-800 truncate">{p.title}</p>
+   424→                            <p className="text-xs text-gray-400">{p.category} &middot; {formatDate(p.scheduledAt)}</p>
+   425→                          </div>
+   426→                          <Badge variant="secondary" className="shrink-0 text-xs bg-teal-50 text-teal-700">{p.category.split(' ')[0]}</Badge>
+   427→                        </div>
+   428→                      ))}
+   429→                    </div>
+   430→                  </CardContent>
+   431→                </Card>
+   432→              </div>
+   433→
+   434→              {stats.autoBloggerConfig && (
+   435→                <Card>
+   436→                  <CardHeader><CardTitle className="text-base">Auto Blogger Status</CardTitle></CardHeader>
+   437→                  <CardContent>
+   438→                    <div className="grid sm:grid-cols-3 gap-4">
+   439→                      <div><p className="text-sm text-gray-500">Status</p><p className={`font-semibold mt-1 ${stats.autoBloggerConfig.status === 'running' ? 'text-blue-600' : 'text-green-600'}`}>{stats.autoBloggerConfig.status}</p></div>
+   440→                      <div><p className="text-sm text-gray-500">Total Generated</p><p className="text-2xl font-bold mt-1">{stats.autoBloggerConfig.totalGenerated}</p></div>
+   441→                      <div><p className="text-sm text-gray-500">Posts/Day Setting</p><p className="text-2xl font-bold mt-1">{stats.autoBloggerConfig.postsPerDay}</p></div>
+   442→                    </div>
+   443→                  </CardContent>
+   444→                </Card>
+   445→              )}
+   446→            </div>
+   447→          )}
+   448→
+   449→          {/* ==================== POSTS TAB ==================== */}
+   450→          {activeTab === "posts" && (
+   451→            <div className="space-y-4">
+   452→              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+   453→                <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full sm:w-auto">
+   454→                  <div className="relative flex-1 max-w-sm">
+   455→                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   456→                    <Input placeholder="Search posts..." value={postSearchInput} onChange={(e) => setPostSearchInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPostSearch(postSearchInput); setPostPage(1); } }} className="pl-9" />
+   457→                  </div>
+   458→                  <Select value={postFilter} onValueChange={(v) => { setPostFilter(v); setPostPage(1); }}>
+   459→                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+   460→                    <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+   461→                  </Select>
+   462→                </div>
+   463→                <Button onClick={() => setActiveTab("newpost")} className="bg-teal-600 hover:bg-teal-700 text-white shrink-0">
+   464→                  <Plus className="h-4 w-4 mr-1" /> New Post
+   465→                </Button>
+   466→              </div>
+   467→
+   468→              <div className="text-sm text-gray-500">{postTotal} posts total</div>
+   469→
+   470→              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+   471→                <div className="overflow-x-auto">
+   472→                  <table className="w-full text-sm">
+   473→                    <thead className="bg-gray-50 border-b">
+   474→                      <tr>
+   475→                        <th className="text-left p-3 font-medium text-gray-500">Title</th>
+   476→                        <th className="text-left p-3 font-medium text-gray-500 hidden md:table-cell">Category</th>
+   477→                        <th className="text-left p-3 font-medium text-gray-500 hidden sm:table-cell">Date</th>
+   478→                        <th className="text-left p-3 font-medium text-gray-500">Status</th>
+   479→                        <th className="text-right p-3 font-medium text-gray-500">Actions</th>
+   480→                      </tr>
+   481→                    </thead>
+   482→                    <tbody>
+   483→                      {posts.map((post) => (
+   484→                        <tr key={post.id} className="border-b last:border-0 hover:bg-gray-50">
+   485→                          <td className="p-3 max-w-xs"><p className="font-medium text-gray-900 truncate">{post.title}</p><p className="text-xs text-gray-400 mt-0.5">{post.slug.substring(0, 40)}...</p></td>
+   486→                          <td className="p-3 hidden md:table-cell"><Badge variant="secondary" className="text-xs bg-teal-50 text-teal-700">{post.category}</Badge></td>
+   487→                          <td className="p-3 text-gray-500 hidden sm:table-cell whitespace-nowrap">{formatDate(post.scheduledAt)}</td>
+   488→                          <td className="p-3"><Badge variant={post.status === "published" ? "default" : "secondary"} className={post.status === "published" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>{post.status}</Badge></td>
+   489→                          <td className="p-3 text-right whitespace-nowrap">
+   490→                            <Button variant="ghost" size="sm" onClick={() => togglePostStatus(post)} className="text-gray-500 hover:text-teal-600"><RefreshCw className="h-3.5 w-3.5" /></Button>
+   491→                            <Button variant="ghost" size="sm" onClick={() => setEditingPost(post)} className="text-gray-500 hover:text-blue-600"><Edit3 className="h-3.5 w-3.5" /></Button>
+   492→                            <Button variant="ghost" size="sm" onClick={() => deletePost(post.id)} className="text-gray-500 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></Button>
+   493→                          </td>
+   494→                        </tr>
+   495→                      ))}
+   496→                    </tbody>
+   497→                  </table>
+   498→                </div>
+   499→              </div>
+   500→
+   501→              <div className="flex justify-center items-center gap-3">
+   502→                <Button variant="outline" size="sm" disabled={postPage <= 1} onClick={() => setPostPage(p => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+   503→                <span className="text-sm text-gray-500">Page {postPage} of {Math.max(1, Math.ceil(postTotal / 15))}</span>
+   504→                <Button variant="outline" size="sm" disabled={postPage >= Math.ceil(postTotal / 15)} onClick={() => setPostPage(p => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+   505→              </div>
+   506→
+   507→              {/* Edit Dialog */}
+   508→              <Dialog open={!!editingPost} onOpenChange={() => setEditingPost(null)}>
+   509→                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+   510→                  <DialogHeader><DialogTitle>Edit Post</DialogTitle></DialogHeader>
+   511→                  {editingPost && (
+   512→                    <div className="space-y-4">
+   513→                      <div><Label>Title</Label><Input value={editingPost.title} onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })} /></div>
+   514→                      <div><Label>Category</Label><Select value={editingPost.category} onValueChange={(v) => setEditingPost({ ...editingPost, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.filter(c => c !== "All").map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+   515→                      <div><Label>Content (Markdown)</Label><Textarea value={editingPost.content} onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })} rows={15} className="font-mono text-sm" /></div>
+   516→                      <div className="flex gap-3"><Button onClick={saveEditPost} className="bg-teal-600 hover:bg-teal-700 text-white">Save Changes</Button><Button variant="outline" onClick={() => setEditingPost(null)}>Cancel</Button></div>
+   517→                    </div>
+   518→                  )}
+   519→                </DialogContent>
+   520→              </Dialog>
+   521→            </div>
+   522→          )}
+   523→
+   524→          {/* ==================== NEW POST TAB ==================== */}
+   525→          {activeTab === "newpost" && (
+   526→            <div className="max-w-3xl space-y-6">
+   527→              <Card>
+   528→                <CardHeader><CardTitle className="text-base">Create New Post</CardTitle><CardDescription>Write a new blog post manually</CardDescription></CardHeader>
+   529→                <CardContent className="space-y-4">
+   530→                  <div><Label htmlFor="np-title">Title</Label><Input id="np-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Article title..." /></div>
+   531→                  <div><Label htmlFor="np-cat">Category</Label><Select value={newCategory} onValueChange={setNewCategory}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{CATEGORIES.filter(c => c !== "All").map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+   532→                  <div><Label htmlFor="np-excerpt">Excerpt</Label><Textarea id="np-excerpt" value={newExcerpt} onChange={(e) => setNewExcerpt(e.target.value)} placeholder="Brief summary..." rows={2} /></div>
+   533→                  <div><Label htmlFor="np-content">Content (Markdown)</Label><Textarea id="np-content" value={newContent} onChange={(e) => setNewContent(e.target.value)} placeholder="# Article Title\n\nYour content here..." rows={15} className="font-mono text-sm" /></div>
+   534→                  <div><Label htmlFor="np-kw">Keywords (comma separated)</Label><Input id="np-kw" value={newKeywords} onChange={(e) => setNewKeywords(e.target.value)} placeholder="root canal, vijayawada, dentist" /></div>
+   535→                  <div className="flex items-center gap-3">
+   536→                    <Label>Status:</Label>
+   537→                    <Select value={newStatus} onValueChange={setNewStatus}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="published">Published</SelectItem><SelectItem value="draft">Draft</SelectItem></SelectContent></Select>
+   538→                  </div>
+   539→                  <Button onClick={saveNewPost} disabled={savingPost || !newTitle || !newContent || !newCategory} className="bg-teal-600 hover:bg-teal-700 text-white">
+   540→                    {savingPost && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   541→                    Publish Post
+   542→                  </Button>
+   543→                </CardContent>
+   544→              </Card>
+   545→            </div>
+   546→          )}
+   547→
+   548→          {/* ==================== AUTO BLOGGER TAB ==================== */}
+   549→          {activeTab === "autoblogger" && (
+   550→            <div className="space-y-6">
+   551→              {/* Config Card */}
+   552→              <Card>
+   553→                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Bot className="h-5 w-5" /> Auto Blogger Settings</CardTitle><CardDescription>Configure automatic blog post generation for SEO</CardDescription></CardHeader>
+   554→                <CardContent className="space-y-6">
+   555→                  <div className="flex items-center justify-between">
+   556→                    <div><p className="font-medium">Auto Blogging</p><p className="text-sm text-gray-500">Automatically generate and publish SEO articles</p></div>
+   557→                    <Switch checked={bloggerConfig?.enabled} onCheckedChange={(v) => updateBloggerConfig({ enabled: v })} />
+   558→                  </div>
+   559→                  <div className="grid sm:grid-cols-2 gap-4">
+   560→                    <div><Label>Posts Per Day</Label><Select value={bloggerConfig?.postsPerDay?.toString() || "3"} onValueChange={(v) => updateBloggerConfig({ postsPerDay: parseInt(v) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1 post/day</SelectItem><SelectItem value="2">2 posts/day</SelectItem><SelectItem value="3">3 posts/day</SelectItem><SelectItem value="5">5 posts/day</SelectItem></SelectContent></Select></div>
+   561→                    <div><Label>Status</Label><p className={`mt-2 font-semibold ${bloggerConfig?.status === 'running' ? 'text-blue-600' : 'text-green-600'}`}>{bloggerConfig?.status || 'idle'}</p></div>
+   562→                  </div>
+   563→                  <div><Label>Categories</Label><Input value={bloggerConfig?.categories || ''} onChange={(e) => updateBloggerConfig({ categories: e.target.value })} placeholder="Comma separated categories" /></div>
+   564→                  {bloggerConfig && <div className="grid sm:grid-cols-3 gap-4 pt-2 border-t"><div><p className="text-xs text-gray-500">Total Generated</p><p className="text-xl font-bold">{bloggerConfig.totalGenerated}</p></div><div><p className="text-xs text-gray-500">Failed</p><p className="text-xl font-bold text-red-600">{bloggerConfig.failedCount}</p></div><div><p className="text-xs text-gray-500">Last Run</p><p className="text-sm font-medium mt-1">{bloggerConfig.lastRunAt ? formatDate(bloggerConfig.lastRunAt) : 'Never'}</p></div></div>}
+   565→                </CardContent>
+   566→              </Card>
+   567→
+   568→              {/* Quick Generate */}
+   569→              <Card>
+   570→                <CardHeader><CardTitle className="text-base">Quick Generate</CardTitle><CardDescription>Generate posts immediately</CardDescription></CardHeader>
+   571→                <CardContent>
+   572→                  <div className="flex flex-wrap gap-3">
+   573→                    {[1, 3, 5].map(n => (
+   574→                      <Button key={n} onClick={() => generateNow(n)} disabled={generating} variant="outline" className="border-teal-300 hover:bg-teal-50">
+   575→                        {generating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
+   576→                        Generate {n} Post{n > 1 ? 's' : ''}
+   577→                      </Button>
+   578→                    ))}
+   579→                  </div>
+   580→                  {genProgress && <p className="mt-3 text-sm text-teal-700 bg-teal-50 p-3 rounded-lg">{genProgress}</p>}
+   581→                </CardContent>
+   582→              </Card>
+   583→
+   584→              {/* Bulk Generate by Treatment */}
+   585→              <Card>
+   586→                <CardHeader><CardTitle className="text-base">Bulk Generate by Treatment</CardTitle><CardDescription>Generate multiple articles for a specific dental treatment</CardDescription></CardHeader>
+   587→                <CardContent className="space-y-4">
+   588→                  <div className="grid sm:grid-cols-3 gap-3">
+   589→                    <Select value={bulkTreatment} onValueChange={setBulkTreatment}>
+   590→                      <SelectTrigger><SelectValue placeholder="Select treatment" /></SelectTrigger>
+   591→                      <SelectContent>{bloggerTreatments.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+   592→                    </Select>
+   593→                    <Select value={bulkCount.toString()} onValueChange={(v) => setBulkCount(parseInt(v))}>
+   594→                      <SelectTrigger><SelectValue /></SelectTrigger>
+   595→                      <SelectContent><SelectItem value="5">5 articles</SelectItem><SelectItem value="10">10 articles</SelectItem><SelectItem value="20">20 articles</SelectItem><SelectItem value="50">50 articles</SelectItem></SelectContent>
+   596→                    </Select>
+   597→                    <Button onClick={bulkGenerate} disabled={bulkGenerating || !bulkTreatment} className="bg-teal-600 hover:bg-teal-700 text-white">
+   598→                      {bulkGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Bot className="h-4 w-4 mr-2" />}
+   599→                      Bulk Generate
+   600→                    </Button>
+   601→                  </div>
+   602→                </CardContent>
+   603→              </Card>
+   604→
+   605→              {/* Generation Logs */}
+   606→              <Card>
+   607→                <CardHeader><CardTitle className="text-base">Generation History</CardTitle></CardHeader>
+   608→                <CardContent>
+   609→                  <div className="overflow-x-auto">
+   610→                    <table className="w-full text-sm">
+   611→                      <thead className="bg-gray-50 border-b"><tr><th className="text-left p-3 font-medium text-gray-500">Date</th><th className="text-left p-3 font-medium text-gray-500">Status</th><th className="text-left p-3 font-medium text-gray-500">Created</th><th className="text-left p-3 font-medium text-gray-500">Failed</th><th className="text-left p-3 font-medium text-gray-500">Duration</th></tr></thead>
+   612→                      <tbody>
+   613→                        {bloggerLogs.map((log) => (
+   614→                          <tr key={log.id} className="border-b last:border-0">
+   615→                            <td className="p-3 text-gray-600">{formatDate(log.ranAt)}</td>
+   616→                            <td className="p-3"><Badge variant={log.status === 'success' ? 'default' : 'destructive'} className={log.status === 'success' ? 'bg-green-100 text-green-700' : ''}>{log.status}</Badge></td>
+   617→                            <td className="p-3 font-medium text-green-600">{log.postsCreated}</td>
+   618→                            <td className="p-3 font-medium text-red-600">{log.postsFailed}</td>
+   619→                            <td className="p-3 text-gray-500">{log.duration}s</td>
+   620→                          </tr>
+   621→                        ))}
+   622→                        {bloggerLogs.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">No generation history yet</td></tr>}
+   623→                      </tbody>
+   624→                    </table>
+   625→                  </div>
+   626→                </CardContent>
+   627→              </Card>
+   628→            </div>
+   629→          )}
+   630→        </div>
+   631→      </main>
+   632→    </div>
+   633→  );
+   634→}
+   635→

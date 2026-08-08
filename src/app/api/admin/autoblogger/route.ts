@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
           if (result) {
             const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36) + i;
             
-            await db.blogPost.create({
+            const newPost = await db.blogPost.create({
               data: {
                 slug,
                 title,
@@ -333,6 +333,13 @@ export async function POST(request: NextRequest) {
               },
             });
             postsCreated++;
+
+            // Auto-share to enabled social platforms
+            try {
+              await autoShareNewPost(newPost.id, newPost.title, newPost.excerpt || '', newPost.slug, newPost.keywords);
+            } catch (socialErr) {
+              console.error('Social auto-share error:', socialErr);
+            }
           } else {
             postsFailed++;
           }
