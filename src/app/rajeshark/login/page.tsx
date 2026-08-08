@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
       if (data.success) {
         localStorage.setItem("admin_token", data.token);
         localStorage.setItem("admin_user", JSON.stringify(data.user));
-        window.location.href = "/admin";
+        window.location.href = "/rajeshark";
       } else {
         setError(data.error || "Login failed");
       }
