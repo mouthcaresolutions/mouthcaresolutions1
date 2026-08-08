@@ -28,3 +28,28 @@ Stage Summary:
 - Admin dashboard at /admin with full CRUD post management
 - Auto-blogger with 25 treatments, LLM-powered article generation
 - All lint checks pass
+---
+Task ID: 1
+Agent: Main Agent
+Task: Convert project from SQLite to Turso + prepare for Vercel deployment
+
+Work Log:
+- Installed @prisma/adapter-libsql and @libsql/client packages
+- Updated prisma/schema.prisma: provider sqlite → libsql with directUrl
+- Rewrote src/lib/db.ts to use PrismaLibSQL adapter with Turso connection
+- Simplified src/lib/admin-db.ts to reuse shared db instance
+- Updated next.config.ts: removed output standalone (not needed for Vercel)
+- Updated package.json scripts: build, start, db:seed commands
+- Created prisma/seed.ts for database initialization
+- Fixed missing autoShareNewPost import in autoblogger route
+- Rewrote api/cron/autoblog/route.ts for external cron service with CRON_SECRET auth
+- Created .env.example with all required Vercel environment variables
+- Updated .gitignore to allow .env.example
+- Created comprehensive VERCEL-DEPLOYMENT-GUIDE.md
+
+Stage Summary:
+- Project fully converted from SQLite to Turso (cloud SQLite)
+- All code changes complete for Vercel compatibility
+- Social media links (Facebook, YouTube, Instagram, Threads) confirmed in Navbar + Footer
+- Deployment guide ready for Vercel + Hostinger DNS approach
+

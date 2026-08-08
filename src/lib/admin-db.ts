@@ -1,16 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { db } from './db'
 
-let _db: PrismaClient | null = null;
-
-export function getAdminDb() {
-  if (!_db) {
-    _db = new PrismaClient({ log: ['error'] });
-  }
-  return _db;
-}
-
-export const adminDb = new Proxy({} as PrismaClient, {
-  get(_, prop) {
-    return (getAdminDb() as any)[prop];
-  },
-});
+// Re-export the shared db instance for admin routes
+export const adminDb = db;

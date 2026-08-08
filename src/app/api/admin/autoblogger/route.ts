@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { validateSession } from '@/lib/auth';
+import { validateSession, seedAdmin } from '@/lib/auth';
+import { autoShareNewPost } from '@/lib/social-poster';
 
 const ALL_TREATMENTS = [
   { name: 'Root Canal Treatment', keywords: ['root canal', 'endodontic', 'pulp therapy', 'root canal treatment vijayawada', 'painless root canal'] },
