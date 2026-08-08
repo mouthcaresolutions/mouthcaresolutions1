@@ -127,6 +127,10 @@ const localBusinessSchema = {
     { "@type": "State", name: "Andhra Pradesh" },
   ],
   sameAs: [
+    "https://www.facebook.com/Mouthcaresolutions/",
+    "https://www.instagram.com/mouthcaresolutions/",
+    "https://www.youtube.com/@MouthCareSolutions",
+    "https://www.threads.com/@mouthcaresolutions",
     "https://wa.me/919866344866",
   ],
 };
