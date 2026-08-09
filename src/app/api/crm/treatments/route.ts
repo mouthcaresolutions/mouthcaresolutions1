@@ -1,0 +1,168 @@
+import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
+import { validateSession } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { getCRM } from '@/lib/crm-db';
+
+// Helper: check if user is admin
+async function isAdmin(token: string): Promise<boolean> {
+  const username = await validateSession(token);
+  if (!username) return false;
+  const user = await db.adminUser.findUnique({ where: { username } });
+  return user?.role === 'admin';
+}
+
+// GET: List treatment prices with category filter
+export async function GET(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token || !(await validateSession(token))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category') || '';
+    const activeOnly = searchParams.get('active') !== 'false';
+
+    const crm = getCRM();
+
+    let sql: string;
+    let args: (string | number)[] = [];
+
+    if (category) {
+      sql = activeOnly
+        ? 'SELECT * FROM TreatmentPrice WHERE category = ? AND active = 1 ORDER BY category, name'
+        : 'SELECT * FROM TreatmentPrice WHERE category = ? ORDER BY category, name';
+      args = [category];
+    } else {
+      sql = activeOnly
+        ? 'SELECT * FROM TreatmentPrice WHERE active = 1 ORDER BY category, name'
+        : 'SELECT * FROM TreatmentPrice ORDER BY category, name';
+    }
+
+    const result = await crm.execute({ sql, args });
+
+    const treatments = result.rows.map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      category: row.category as string | null,
+      price: row.price as number,
+      duration: row.duration as number,
+      description: row.description as string | null,
+      active: row.active as number,
+      createdAt: row.createdAt as string,
+      updatedAt: row.updatedAt as string,
+    }));
+
+    // Get unique categories
+    const catResult = await crm.execute(
+      'SELECT DISTINCT category FROM TreatmentPrice WHERE category IS NOT NULL AND active = 1 ORDER BY category'
+    );
+    const categories = catResult.rows.map((r) => r.category as string);
+
+    return NextResponse.json({ treatments, categories });
+  } catch (error) {
+    console.error('List treatments error:', error);
+    return NextResponse.json({ error: 'Failed to list treatments' }, { status: 500 });
+  }
+}
+
+// POST: Add treatment price (admin only)
+export async function POST(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token || !(await isAdmin(token))) {
+      return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const crm = getCRM();
+
+    if (!body.name) {
+      return NextResponse.json({ error: 'Treatment name is required' }, { status: 400 });
+    }
+
+    const id = 'tp_' + crypto.randomBytes(12).toString('hex');
+
+    await crm.execute({
+      sql: `INSERT INTO TreatmentPrice (
+        id, name, category, price, duration, description, active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        id,
+        body.name,
+        body.category || null,
+        body.price || 0,
+        body.duration || 30,
+        body.description || null,
+        body.active !== undefined ? (body.active ? 1 : 0) : 1,
+      ],
+    });
+
+    return NextResponse.json(
+      { success: true, id, name: body.name, message: 'Treatment added successfully' },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Add treatment error:', error);
+    return NextResponse.json({ error: 'Failed to add treatment' }, { status: 500 });
+  }
+}
+
+// PUT: Update treatment price (admin only)
+export async function PUT(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token || !(await isAdmin(token))) {
+      return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const crm = getCRM();
+
+    if (!body.id) {
+      return NextResponse.json({ error: 'Treatment ID is required' }, { status: 400 });
+    }
+
+    const existing = await crm.execute({
+      sql: 'SELECT id FROM TreatmentPrice WHERE id = ?',
+      args: [body.id],
+    });
+    if (existing.rows.length === 0) {
+      return NextResponse.json({ error: 'Treatment not found' }, { status: 404 });
+    }
+
+    const updatableFields = [
+      'name', 'category', 'price', 'duration', 'description', 'active',
+    ];
+
+    const setClauses: string[] = ['updatedAt = CURRENT_TIMESTAMP'];
+    const args: (string | number | null)[] = [];
+
+    for (const field of updatableFields) {
+      if (body[field] !== undefined) {
+        setClauses.push(`${field} = ?`);
+        if (field === 'active') {
+          args.push(body[field] ? 1 : 0);
+        } else {
+          args.push(body[field] === '' ? null : body[field]);
+        }
+      }
+    }
+
+    if (setClauses.length <= 1) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    args.push(body.id);
+    await crm.execute({
+      sql: `UPDATE TreatmentPrice SET ${setClauses.join(', ')} WHERE id = ?`,
+      args,
+    });
+
+    return NextResponse.json({ success: true, message: 'Treatment updated successfully' });
+  } catch (error) {
+    console.error('Update treatment error:', error);
+    return NextResponse.json({ error: 'Failed to update treatment' }, { status: 500 });
+  }
+}

@@ -1,0 +1,1028 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useCallback } from "react";
+     4→import { useRouter } from "next/navigation";
+     5→import { Button } from "@/components/ui/button";
+     6→import { Input } from "@/components/ui/input";
+     7→import { Label } from "@/components/ui/label";
+     8→import { Textarea } from "@/components/ui/textarea";
+     9→import { Badge } from "@/components/ui/badge";
+    10→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+    11→import { Switch } from "@/components/ui/switch";
+    12→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    13→import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+    14→import { ScrollArea } from "@/components/ui/scroll-area";
+    15→import {
+    16→  LayoutDashboard, FileText, Bot, LogOut, Search, Plus, Trash2, Edit3, Play, Settings, Loader2, FileBarChart, Clock, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight, ExternalLink, BarChart3, Calendar, ArrowUpRight, Share2, Globe, Send, Eye, Key, AlertCircle
+    17→} from "lucide-react";
+    18→
+    19→const CATEGORIES = [
+    20→  "All",
+    21→  "General Dentistry",
+    22→  "Cosmetic Dentistry",
+    23→  "Oral Hygiene",
+    24→  "Pediatric Dentistry",
+    25→  "Implants & Prosthodontics",
+    26→  "Orthodontics",
+    27→  "Preventive Dental Care",
+    28→];
+    29→
+    30→interface Post {
+    31→  id: string;
+    32→  slug: string;
+    33→  title: string;
+    34→  content: string;
+    35→  excerpt: string | null;
+    36→  category: string;
+    37→  keywords: string | null;
+    38→  status: string;
+    39→  scheduledAt: string;
+    40→  createdAt: string;
+    41→  updatedAt: string;
+    42→}
+    43→
+    44→interface AutoBloggerLog {
+    45→  id: string;
+    46→  status: string;
+    47→  postsCreated: number;
+    48→  postsFailed: number;
+    49→  error: string | null;
+    50→  duration: number;
+    51→  ranAt: string;
+    52→}
+    53→
+    54→type Tab = "dashboard" | "posts" | "autoblogger" | "newpost" | "social";
+    55→
+    56→export default function AdminPage() {
+    57→  const router = useRouter();
+    58→  const [token, setToken] = useState("");
+    59→  const [user, setUser] = useState<{ username: string; name: string; role: string } | null>(null);
+    60→  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+    61→  const [loading, setLoading] = useState(true);
+    62→  const [mobileSidebar, setMobileSidebar] = useState(false);
+    63→
+    64→  // Dashboard state
+    65→  const [stats, setStats] = useState<any>(null);
+    66→
+    67→  // Posts state
+    68→  const [posts, setPosts] = useState<Post[]>([]);
+    69→  const [postTotal, setPostTotal] = useState(0);
+    70→  const [postPage, setPostPage] = useState(1);
+    71→  const [postFilter, setPostFilter] = useState("All");
+    72→  const [postSearch, setPostSearch] = useState("");
+    73→  const [postSearchInput, setPostSearchInput] = useState("");
+    74→
+    75→  // Auto-blogger state
+    76→  const [bloggerConfig, setBloggerConfig] = useState<any>(null);
+    77→  const [bloggerLogs, setBloggerLogs] = useState<AutoBloggerLog[]>([]);
+    78→  const [bloggerTreatments, setBloggerTreatments] = useState<string[]>([]);
+    79→  const [generating, setGenerating] = useState(false);
+    80→  const [genProgress, setGenProgress] = useState("");
+    81→  const [bulkTreatment, setBulkTreatment] = useState("");
+    82→  const [bulkCount, setBulkCount] = useState(10);
+    83→  const [bulkGenerating, setBulkGenerating] = useState(false);
+    84→
+    85→  // New post state
+    86→  const [newTitle, setNewTitle] = useState("");
+    87→  const [newContent, setNewContent] = useState("");
+    88→  const [newExcerpt, setNewExcerpt] = useState("");
+    89→  const [newCategory, setNewCategory] = useState("");
+    90→  const [newKeywords, setNewKeywords] = useState("");
+    91→  const [newStatus, setNewStatus] = useState("published");
+    92→  const [savingPost, setSavingPost] = useState(false);
+    93→
+    94→  // Edit post state
+    95→  const [editingPost, setEditingPost] = useState<Post | null>(null);
+    96→
+    97→  // Social media state
+    98→  const [socialConfigs, setSocialConfigs] = useState<any[]>([]);
+    99→  const [socialLogs, setSocialLogs] = useState<any[]>([]);
+   100→  const [socialLoading, setSocialLoading] = useState(false);
+   101→  const [testResult, setTestResult] = useState<string>("");
+   102→  const [autoShareLoading, setAutoShareLoading] = useState(false);
+   103→
+   104→  const getToken = useCallback(() => localStorage.getItem("admin_token") || "", []);
+   105→
+   106→  useEffect(() => {
+   107→    const t = getToken();
+   108→    const u = localStorage.getItem("admin_user");
+   109→    if (!t || !u) {
+   110→      router.push("/rajeshark/login");
+   111→      return;
+   112→    }
+   113→    // Defer setState to avoid synchronous setState in effect
+   114→    queueMicrotask(() => {
+   115→      setToken(t);
+   116→      setUser(JSON.parse(u));
+   117→      setLoading(false);
+   118→    });
+   119→  }, [getToken, router]);
+   120→
+   121→  const fetchStats = useCallback(async () => {
+   122→    try {
+   123→      const res = await fetch("/api/admin/stats", { headers: { Authorization: `Bearer ${getToken()}` } });
+   124→      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+   125→      const data = await res.json();
+   126→      setStats(data);
+   127→    } catch (e) { console.error(e); }
+   128→  }, [getToken, router]);
+   129→
+   130→  const fetchPosts = useCallback(async () => {
+   131→    try {
+   132→      const params = new URLSearchParams({ page: postPage.toString(), limit: "15" });
+   133→      if (postFilter !== "All") params.set("category", postFilter);
+   134→      if (postSearch) params.set("search", postSearch);
+   135→      const res = await fetch(`/api/admin/posts?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+   136→      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+   137→      const data = await res.json();
+   138→      setPosts(data.posts || []);
+   139→      setPostTotal(data.total || 0);
+   140→    } catch (e) { console.error(e); }
+   141→  }, [getToken, router, postPage, postFilter, postSearch]);
+   142→
+   143→  const fetchBlogger = useCallback(async () => {
+   144→    try {
+   145→      const res = await fetch("/api/admin/autoblogger", { headers: { Authorization: `Bearer ${getToken()}` } });
+   146→      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+   147→      const data = await res.json();
+   148→      setBloggerConfig(data.config);
+   149→      setBloggerLogs(data.logs || []);
+   150→      setBloggerTreatments(data.treatments || []);
+   151→    } catch (e) { console.error(e); }
+   152→  }, [getToken, router]);
+   153→
+   154→  const fetchSocial = useCallback(async () => {
+   155→    try {
+   156→      const res = await fetch("/api/admin/social", { headers: { Authorization: `Bearer ${getToken()}` } });
+   157→      if (res.status === 401) { router.push("/rajeshark/login"); return; }
+   158→      const data = await res.json();
+   159→      setSocialConfigs(data.configs || []);
+   160→      setSocialLogs(data.logs || []);
+   161→    } catch (e) { console.error(e); }
+   162→  }, [getToken, router]);
+   163→
+   164→  useEffect(() => {
+   165→    if (!token) return;
+   166→    const load = async () => { try { await fetchStats(); } catch(e) { /* ignore */ } };
+   167→    load();
+   168→  }, [token]);
+   169→
+   170→  useEffect(() => {
+   171→    if (!token || activeTab !== "posts") return;
+   172→    const load = async () => { try { await fetchPosts(); } catch(e) { /* ignore */ } };
+   173→    load();
+   174→  }, [token, activeTab]);
+   175→
+   176→  useEffect(() => {
+   177→    if (!token || activeTab !== "autoblogger") return;
+   178→    const load = async () => { try { await fetchBlogger(); } catch(e) { /* ignore */ } };
+   179→    load();
+   180→  }, [token, activeTab]);
+   181→
+   182→  useEffect(() => {
+   183→    if (!token || activeTab !== "social") return;
+   184→    const load = async () => { try { await fetchSocial(); } catch(e) { /* ignore */ } };
+   185→    load();
+   186→  }, [token, activeTab]);
+   187→
+   188→  const logout = () => {
+   189→    fetch("/api/admin/auth", {
+   190→      method: "POST",
+   191→      headers: { "Content-Type": "application/json" },
+   192→      body: JSON.stringify({ action: "logout", token }),
+   193→    });
+   194→    localStorage.removeItem("admin_token");
+   195→    localStorage.removeItem("admin_user");
+   196→    router.push("/rajeshark/login");
+   197→  };
+   198→
+   199→  const deletePost = async (id: string) => {
+   200→    if (!confirm("Delete this post?")) return;
+   201→    await fetch(`/api/admin/posts?id=${id}`, {
+   202→      method: "DELETE",
+   203→      headers: { Authorization: `Bearer ${getToken()}` },
+   204→    });
+   205→    fetchPosts();
+   206→  };
+   207→
+   208→  const togglePostStatus = async (post: Post) => {
+   209→    const newStatus = post.status === "published" ? "draft" : "published";
+   210→    await fetch("/api/admin/posts", {
+   211→      method: "PUT",
+   212→      headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   213→      body: JSON.stringify({ id: post.id, status: newStatus }),
+   214→    });
+   215→    fetchPosts();
+   216→  };
+   217→
+   218→  const saveNewPost = async () => {
+   219→    if (!newTitle || !newContent || !newCategory) return;
+   220→    setSavingPost(true);
+   221→    try {
+   222→      const res = await fetch("/api/admin/posts", {
+   223→        method: "POST",
+   224→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   225→        body: JSON.stringify({
+   226→          title: newTitle, content: newContent, excerpt: newExcerpt,
+   227→          category: newCategory, keywords: newKeywords, status: newStatus,
+   228→        }),
+   229→      });
+   230→      const data = await res.json();
+   231→      if (data.success) {
+   232→        setNewTitle(""); setNewContent(""); setNewExcerpt("");
+   233→        setNewKeywords(""); setNewStatus("published");
+   234→        setActiveTab("posts");
+   235→        alert("Post created!");
+   236→      }
+   237→    } catch (e) { console.error(e); }
+   238→    setSavingPost(false);
+   239→  };
+   240→
+   241→  const saveEditPost = async () => {
+   242→    if (!editingPost) return;
+   243→    try {
+   244→      await fetch("/api/admin/posts", {
+   245→        method: "PUT",
+   246→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   247→        body: JSON.stringify(editingPost),
+   248→      });
+   249→      setEditingPost(null);
+   250→      fetchPosts();
+   251→    } catch (e) { console.error(e); }
+   252→  };
+   253→
+   254→  const generateNow = async (count: number = 3) => {
+   255→    setGenerating(true);
+   256→    setGenProgress(`Generating ${count} articles...`);
+   257→    try {
+   258→      const res = await fetch("/api/admin/autoblogger", {
+   259→        method: "POST",
+   260→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   261→        body: JSON.stringify({ action: "generateNow", count }),
+   262→      });
+   263→      const data = await res.json();
+   264→      setGenProgress(`Done! Created: ${data.postsCreated}, Failed: ${data.postsFailed}, Time: ${data.duration}s`);
+   265→      fetchBlogger();
+   266→    } catch (e) { setGenProgress("Generation failed"); }
+   267→    setGenerating(false);
+   268→    setTimeout(() => setGenProgress(""), 5000);
+   269→  };
+   270→
+   271→  const bulkGenerate = async () => {
+   272→    if (!bulkTreatment) return;
+   273→    setBulkGenerating(true);
+   274→    setGenProgress(`Generating ${bulkCount} articles for ${bulkTreatment}...`);
+   275→    try {
+   276→      const res = await fetch("/api/admin/autoblogger", {
+   277→        method: "POST",
+   278→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   279→        body: JSON.stringify({ action: "bulkGenerate", treatmentName: bulkTreatment, count: bulkCount }),
+   280→      });
+   281→      const data = await res.json();
+   282→      setGenProgress(`Done! Created: ${data.postsCreated}, Failed: ${data.postsFailed}, Time: ${data.duration}s`);
+   283→      fetchBlogger();
+   284→    } catch (e) { setGenProgress("Generation failed"); }
+   285→    setBulkGenerating(false);
+   286→    setTimeout(() => setGenProgress(""), 5000);
+   287→  };
+   288→
+   289→  const updateBloggerConfig = async (updates: any) => {
+   290→    try {
+   291→      const res = await fetch("/api/admin/autoblogger", {
+   292→        method: "POST",
+   293→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   294→        body: JSON.stringify({ action: "updateConfig", ...updates }),
+   295→      });
+   296→      const data = await res.json();
+   297→      if (data.success) setBloggerConfig(data.config);
+   298→    } catch (e) { console.error(e); }
+   299→  };
+   300→
+   301→  // Social media functions
+   302→  const saveSocialConfig = async (platform: string, updates: any) => {
+   303→    setSocialLoading(true);
+   304→    try {
+   305→      const res = await fetch("/api/admin/social", {
+   306→        method: "POST",
+   307→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   308→        body: JSON.stringify({ action: "saveConfig", platform, ...updates }),
+   309→      });
+   310→      const data = await res.json();
+   311→      if (data.success) fetchSocial();
+   312→      else alert(data.error || "Failed to save");
+   313→    } catch (e) { console.error(e); }
+   314→    setSocialLoading(false);
+   315→  };
+   316→
+   317→  const testSocialConnection = async (platform: string) => {
+   318→    setTestResult(`Testing ${platform}...`);
+   319→    try {
+   320→      const res = await fetch("/api/admin/social", {
+   321→        method: "POST",
+   322→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   323→        body: JSON.stringify({ action: "testConnection", platform }),
+   324→      });
+   325→      const data = await res.json();
+   326→      setTestResult(data.success ? `${platform}: Connection successful! Post ID: ${data.postId || 'N/A'}` : `${platform}: Failed - ${data.error}`);
+   327→      fetchSocial();
+   328→    } catch (e) { setTestResult(`Test failed: ${e}`); }
+   329→    setTimeout(() => setTestResult(""), 8000);
+   330→  };
+   331→
+   332→  const sharePostToSocial = async (postId: string, platforms: string[]) => {
+   333→    setSocialLoading(true);
+   334→    try {
+   335→      const res = await fetch("/api/admin/social", {
+   336→        method: "POST",
+   337→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   338→        body: JSON.stringify({ action: "sharePost", postId, platforms }),
+   339→      });
+   340→      const data = await res.json();
+   341→      alert(`Shared to ${data.shared}/${data.total} platforms`);
+   342→      fetchSocial();
+   343→    } catch (e) { alert("Share failed"); }
+   344→    setSocialLoading(false);
+   345→  };
+   346→
+   347→  const autoShareRecent = async (count: number = 3) => {
+   348→    setAutoShareLoading(true);
+   349→    try {
+   350→      const res = await fetch("/api/admin/social", {
+   351→        method: "POST",
+   352→        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+   353→        body: JSON.stringify({ action: "autoShare", count }),
+   354→      });
+   355→      const data = await res.json();
+   356→      alert(`Auto-shared: ${data.shared} posts across ${data.total} attempts`);
+   357→      fetchSocial();
+   358→    } catch (e) { alert("Auto-share failed"); }
+   359→    setAutoShareLoading(false);
+   360→  };
+   361→
+   362→  if (loading) {
+   363→    return (
+   364→      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+   365→        <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
+   366→      </div>
+   367→    );
+   368→  }
+   369→
+   370→  const sidebarItems = [
+   371→    { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
+   372→    { id: "posts" as Tab, label: "All Posts", icon: FileText },
+   373→    { id: "newpost" as Tab, label: "New Post", icon: Plus },
+   374→    { id: "autoblogger" as Tab, label: "Auto Blogger", icon: Bot },
+   375→    { id: "social" as Tab, label: "Social Media", icon: Share2 },
+   376→  ];
+   377→
+   378→  const formatDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+   379→
+   380→  return (
+   381→    <div className="min-h-screen bg-gray-50 flex">
+   382→      {/* Sidebar - Desktop */}
+   383→      <aside className="hidden lg:flex lg:w-64 bg-teal-900 text-white flex-col fixed inset-y-0 left-0 z-40">
+   384→        <div className="p-5 border-b border-teal-800">
+   385→          <h2 className="text-lg font-bold">MCS Admin</h2>
+   386→          <p className="text-teal-300 text-xs">Content Dashboard</p>
+   387→        </div>
+   388→        <nav className="flex-1 p-3 space-y-1">
+   389→          {sidebarItems.map((item) => (
+   390→            <button
+   391→              key={item.id}
+   392→              onClick={() => setActiveTab(item.id)}
+   393→              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+   394→                activeTab === item.id
+   395→                  ? "bg-teal-700 text-white"
+   396→                  : "text-teal-200 hover:bg-teal-800 hover:text-white"
+   397→              }`}
+   398→            >
+   399→              <item.icon className="h-4 w-4" />
+   400→              {item.label}
+   401→            </button>
+   402→          ))}
+   403→        </nav>
+   404→        <div className="p-4 border-t border-teal-800">
+   405→          <div className="flex items-center justify-between mb-3">
+   406→            <span className="text-sm text-teal-200">{user?.name || "Admin"}</span>
+   407→            <Button variant="ghost" size="sm" onClick={logout} className="text-teal-300 hover:text-white hover:bg-teal-800">
+   408→              <LogOut className="h-4 w-4" />
+   409→            </Button>
+   410→          </div>
+   411→          <a href="/" className="flex items-center gap-1 text-xs text-teal-400 hover:text-teal-200">
+   412→            <ExternalLink className="h-3 w-3" /> View Website
+   413→          </a>
+   414→        </div>
+   415→      </aside>
+   416→
+   417→      {/* Mobile sidebar overlay */}
+   418→      {mobileSidebar && (
+   419→        <div className="fixed inset-0 z-50 lg:hidden">
+   420→          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileSidebar(false)} />
+   421→          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-teal-900 text-white p-5">
+   422→            <h2 className="text-lg font-bold mb-4">MCS Admin</h2>
+   423→            <nav className="space-y-1">
+   424→              {sidebarItems.map((item) => (
+   425→                <button
+   426→                  key={item.id}
+   427→                  onClick={() => { setActiveTab(item.id); setMobileSidebar(false); }}
+   428→                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium ${
+   429→                    activeTab === item.id ? "bg-teal-700" : "text-teal-200"
+   430→                  }`}
+   431→                >
+   432→                  <item.icon className="h-4 w-4" /> {item.label}
+   433→                </button>
+   434→              ))}
+   435→            </nav>
+   436→            <button onClick={logout} className="mt-6 text-sm text-teal-300 flex items-center gap-2">
+   437→              <LogOut className="h-4 w-4" /> Logout
+   438→            </button>
+   439→          </aside>
+   440→        </div>
+   441→      )}
+   442→
+   443→      {/* Main Content */}
+   444→      <main className="flex-1 lg:ml-64 min-h-screen">
+   445→        {/* Top bar */}
+   446→        <header className="bg-white border-b border-gray-200 px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+   447→          <div className="flex items-center gap-3">
+   448→            <button className="lg:hidden p-2 hover:bg-gray-100 rounded-md" onClick={() => setMobileSidebar(true)}>
+   449→              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   450→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+   451→              </svg>
+   452→            </button>
+   453→            <h1 className="text-xl font-bold text-gray-900">
+   454→              {activeTab === "dashboard" && "Dashboard"}
+   455→              {activeTab === "posts" && "All Posts"}
+   456→              {activeTab === "newpost" && "Create New Post"}
+   457→              {activeTab === "autoblogger" && "Auto Blogger"}
+   458→              {activeTab === "social" && "Social Media"}
+   459→            </h1>
+   460→          </div>
+   461→          <div className="flex items-center gap-3">
+   462→            <a href="/" target="_blank" className="text-sm text-teal-600 hover:text-teal-800 hidden sm:flex items-center gap-1">
+   463→              <ExternalLink className="h-3.5 w-3.5" /> View Site
+   464→            </a>
+   465→            <Button variant="outline" size="sm" onClick={logout}>
+   466→              <LogOut className="h-4 w-4 mr-1" /> Logout
+   467→            </Button>
+   468→          </div>
+   469→        </header>
+   470→
+   471→        <div className="p-4 lg:p-8">
+   472→          {/* ==================== DASHBOARD TAB ==================== */}
+   473→          {activeTab === "dashboard" && stats && (
+   474→            <div className="space-y-6">
+   475→              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   476→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Total Posts</p><p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalPosts}</p></div><FileBarChart className="h-10 w-10 text-teal-100" /></div></CardContent></Card>
+   477→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Published</p><p className="text-3xl font-bold text-green-600 mt-1">{stats.publishedPosts}</p></div><CheckCircle className="h-10 w-10 text-green-100" /></div></CardContent></Card>
+   478→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Drafts</p><p className="text-3xl font-bold text-amber-600 mt-1">{stats.draftPosts}</p></div><FileText className="h-10 w-10 text-amber-100" /></div></CardContent></Card>
+   479→                <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">This Week</p><p className="text-3xl font-bold text-blue-600 mt-1">{stats.recentWeekPosts}</p></div><ArrowUpRight className="h-10 w-10 text-blue-100" /></div></CardContent></Card>
+   480→              </div>
+   481→
+   482→              <div className="grid lg:grid-cols-2 gap-6">
+   483→                <Card>
+   484→                  <CardHeader><CardTitle className="text-base">Posts by Category</CardTitle></CardHeader>
+   485→                  <CardContent>
+   486→                    <div className="space-y-3">
+   487→                      {(stats.postsByCategory || []).map((c: any) => (
+   488→                        <div key={c.category} className="flex items-center justify-between">
+   489→                          <span className="text-sm text-gray-700">{c.category}</span>
+   490→                          <div className="flex items-center gap-3">
+   491→                            <div className="w-32 bg-gray-100 rounded-full h-2">
+   492→                              <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.min(100, (c._count.category / (stats.totalPosts || 1)) * 100)}%` }} />
+   493→                            </div>
+   494→                            <span className="text-sm font-medium text-gray-600 w-8 text-right">{c._count.category}</span>
+   495→                          </div>
+   496→                        </div>
+   497→                      ))}
+   498→                    </div>
+   499→                  </CardContent>
+   500→                </Card>
+   501→
+   502→                <Card>
+   503→                  <CardHeader><CardTitle className="text-base">Recent Posts</CardTitle></CardHeader>
+   504→                  <CardContent>
+   505→                    <div className="space-y-3">
+   506→                      {(stats.recentPosts || []).map((p: any) => (
+   507→                        <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+   508→                          <div className="min-w-0 flex-1 mr-3">
+   509→                            <p className="text-sm font-medium text-gray-800 truncate">{p.title}</p>
+   510→                            <p className="text-xs text-gray-400">{p.category} &middot; {formatDate(p.scheduledAt)}</p>
+   511→                          </div>
+   512→                          <Badge variant="secondary" className="shrink-0 text-xs bg-teal-50 text-teal-700">{p.category.split(' ')[0]}</Badge>
+   513→                        </div>
+   514→                      ))}
+   515→                    </div>
+   516→                  </CardContent>
+   517→                </Card>
+   518→              </div>
+   519→
+   520→              {stats.autoBloggerConfig && (
+   521→                <Card>
+   522→                  <CardHeader><CardTitle className="text-base">Auto Blogger Status</CardTitle></CardHeader>
+   523→                  <CardContent>
+   524→                    <div className="grid sm:grid-cols-3 gap-4">
+   525→                      <div><p className="text-sm text-gray-500">Status</p><p className={`font-semibold mt-1 ${stats.autoBloggerConfig.status === 'running' ? 'text-blue-600' : 'text-green-600'}`}>{stats.autoBloggerConfig.status}</p></div>
+   526→                      <div><p className="text-sm text-gray-500">Total Generated</p><p className="text-2xl font-bold mt-1">{stats.autoBloggerConfig.totalGenerated}</p></div>
+   527→                      <div><p className="text-sm text-gray-500">Posts/Day Setting</p><p className="text-2xl font-bold mt-1">{stats.autoBloggerConfig.postsPerDay}</p></div>
+   528→                    </div>
+   529→                  </CardContent>
+   530→                </Card>
+   531→              )}
+   532→            </div>
+   533→          )}
+   534→
+   535→          {/* ==================== POSTS TAB ==================== */}
+   536→          {activeTab === "posts" && (
+   537→            <div className="space-y-4">
+   538→              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+   539→                <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full sm:w-auto">
+   540→                  <div className="relative flex-1 max-w-sm">
+   541→                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+   542→                    <Input placeholder="Search posts..." value={postSearchInput} onChange={(e) => setPostSearchInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setPostSearch(postSearchInput); setPostPage(1); } }} className="pl-9" />
+   543→                  </div>
+   544→                  <Select value={postFilter} onValueChange={(v) => { setPostFilter(v); setPostPage(1); }}>
+   545→                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+   546→                    <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+   547→                  </Select>
+   548→                </div>
+   549→                <Button onClick={() => setActiveTab("newpost")} className="bg-teal-600 hover:bg-teal-700 text-white shrink-0">
+   550→                  <Plus className="h-4 w-4 mr-1" /> New Post
+   551→                </Button>
+   552→              </div>
+   553→
+   554→              <div className="text-sm text-gray-500">{postTotal} posts total</div>
+   555→
+   556→              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+   557→                <div className="overflow-x-auto">
+   558→                  <table className="w-full text-sm">
+   559→                    <thead className="bg-gray-50 border-b">
+   560→                      <tr>
+   561→                        <th className="text-left p-3 font-medium text-gray-500">Title</th>
+   562→                        <th className="text-left p-3 font-medium text-gray-500 hidden md:table-cell">Category</th>
+   563→                        <th className="text-left p-3 font-medium text-gray-500 hidden sm:table-cell">Date</th>
+   564→                        <th className="text-left p-3 font-medium text-gray-500">Status</th>
+   565→                        <th className="text-right p-3 font-medium text-gray-500">Actions</th>
+   566→                      </tr>
+   567→                    </thead>
+   568→                    <tbody>
+   569→                      {posts.map((post) => (
+   570→                        <tr key={post.id} className="border-b last:border-0 hover:bg-gray-50">
+   571→                          <td className="p-3 max-w-xs"><p className="font-medium text-gray-900 truncate">{post.title}</p><p className="text-xs text-gray-400 mt-0.5">{post.slug.substring(0, 40)}...</p></td>
+   572→                          <td className="p-3 hidden md:table-cell"><Badge variant="secondary" className="text-xs bg-teal-50 text-teal-700">{post.category}</Badge></td>
+   573→                          <td className="p-3 text-gray-500 hidden sm:table-cell whitespace-nowrap">{formatDate(post.scheduledAt)}</td>
+   574→                          <td className="p-3"><Badge variant={post.status === "published" ? "default" : "secondary"} className={post.status === "published" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>{post.status}</Badge></td>
+   575→                          <td className="p-3 text-right whitespace-nowrap">
+   576→                            <Button variant="ghost" size="sm" onClick={() => togglePostStatus(post)} className="text-gray-500 hover:text-teal-600"><RefreshCw className="h-3.5 w-3.5" /></Button>
+   577→                            <Button variant="ghost" size="sm" onClick={() => setEditingPost(post)} className="text-gray-500 hover:text-blue-600"><Edit3 className="h-3.5 w-3.5" /></Button>
+   578→                            <Button variant="ghost" size="sm" onClick={() => deletePost(post.id)} className="text-gray-500 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></Button>
+   579→                          </td>
+   580→                        </tr>
+   581→                      ))}
+   582→                    </tbody>
+   583→                  </table>
+   584→                </div>
+   585→              </div>
+   586→
+   587→              <div className="flex justify-center items-center gap-3">
+   588→                <Button variant="outline" size="sm" disabled={postPage <= 1} onClick={() => setPostPage(p => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+   589→                <span className="text-sm text-gray-500">Page {postPage} of {Math.max(1, Math.ceil(postTotal / 15))}</span>
+   590→                <Button variant="outline" size="sm" disabled={postPage >= Math.ceil(postTotal / 15)} onClick={() => setPostPage(p => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+   591→              </div>
+   592→
+   593→              {/* Edit Dialog */}
+   594→              <Dialog open={!!editingPost} onOpenChange={() => setEditingPost(null)}>
+   595→                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+   596→                  <DialogHeader><DialogTitle>Edit Post</DialogTitle></DialogHeader>
+   597→                  {editingPost && (
+   598→                    <div className="space-y-4">
+   599→                      <div><Label>Title</Label><Input value={editingPost.title} onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })} /></div>
+   600→                      <div><Label>Category</Label><Select value={editingPost.category} onValueChange={(v) => setEditingPost({ ...editingPost, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.filter(c => c !== "All").map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+   601→                      <div><Label>Content (Markdown)</Label><Textarea value={editingPost.content} onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })} rows={15} className="font-mono text-sm" /></div>
+   602→                      <div className="flex gap-3"><Button onClick={saveEditPost} className="bg-teal-600 hover:bg-teal-700 text-white">Save Changes</Button><Button variant="outline" onClick={() => setEditingPost(null)}>Cancel</Button></div>
+   603→                    </div>
+   604→                  )}
+   605→                </DialogContent>
+   606→              </Dialog>
+   607→            </div>
+   608→          )}
+   609→
+   610→          {/* ==================== NEW POST TAB ==================== */}
+   611→          {activeTab === "newpost" && (
+   612→            <div className="max-w-3xl space-y-6">
+   613→              <Card>
+   614→                <CardHeader><CardTitle className="text-base">Create New Post</CardTitle><CardDescription>Write a new blog post manually</CardDescription></CardHeader>
+   615→                <CardContent className="space-y-4">
+   616→                  <div><Label htmlFor="np-title">Title</Label><Input id="np-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Article title..." /></div>
+   617→                  <div><Label htmlFor="np-cat">Category</Label><Select value={newCategory} onValueChange={setNewCategory}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{CATEGORIES.filter(c => c !== "All").map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+   618→                  <div><Label htmlFor="np-excerpt">Excerpt</Label><Textarea id="np-excerpt" value={newExcerpt} onChange={(e) => setNewExcerpt(e.target.value)} placeholder="Brief summary..." rows={2} /></div>
+   619→                  <div><Label htmlFor="np-content">Content (Markdown)</Label><Textarea id="np-content" value={newContent} onChange={(e) => setNewContent(e.target.value)} placeholder="# Article Title\n\nYour content here..." rows={15} className="font-mono text-sm" /></div>
+   620→                  <div><Label htmlFor="np-kw">Keywords (comma separated)</Label><Input id="np-kw" value={newKeywords} onChange={(e) => setNewKeywords(e.target.value)} placeholder="root canal, vijayawada, dentist" /></div>
+   621→                  <div className="flex items-center gap-3">
+   622→                    <Label>Status:</Label>
+   623→                    <Select value={newStatus} onValueChange={setNewStatus}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="published">Published</SelectItem><SelectItem value="draft">Draft</SelectItem></SelectContent></Select>
+   624→                  </div>
+   625→                  <Button onClick={saveNewPost} disabled={savingPost || !newTitle || !newContent || !newCategory} className="bg-teal-600 hover:bg-teal-700 text-white">
+   626→                    {savingPost && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+   627→                    Publish Post
+   628→                  </Button>
+   629→                </CardContent>
+   630→              </Card>
+   631→            </div>
+   632→          )}
+   633→
+   634→          {/* ==================== AUTO BLOGGER TAB ==================== */}
+   635→          {activeTab === "autoblogger" && (
+   636→            <div className="space-y-6">
+   637→              {/* Config Card */}
+   638→              <Card>
+   639→                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Bot className="h-5 w-5" /> Auto Blogger Settings</CardTitle><CardDescription>Configure automatic blog post generation for SEO</CardDescription></CardHeader>
+   640→                <CardContent className="space-y-6">
+   641→                  <div className="flex items-center justify-between">
+   642→                    <div><p className="font-medium">Auto Blogging</p><p className="text-sm text-gray-500">Automatically generate and publish SEO articles</p></div>
+   643→                    <Switch checked={bloggerConfig?.enabled} onCheckedChange={(v) => updateBloggerConfig({ enabled: v })} />
+   644→                  </div>
+   645→                  <div className="grid sm:grid-cols-2 gap-4">
+   646→                    <div><Label>Posts Per Day</Label><Select value={bloggerConfig?.postsPerDay?.toString() || "3"} onValueChange={(v) => updateBloggerConfig({ postsPerDay: parseInt(v) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1 post/day</SelectItem><SelectItem value="2">2 posts/day</SelectItem><SelectItem value="3">3 posts/day</SelectItem><SelectItem value="5">5 posts/day</SelectItem></SelectContent></Select></div>
+   647→                    <div><Label>Status</Label><p className={`mt-2 font-semibold ${bloggerConfig?.status === 'running' ? 'text-blue-600' : 'text-green-600'}`}>{bloggerConfig?.status || 'idle'}</p></div>
+   648→                  </div>
+   649→                  <div><Label>Categories</Label><Input value={bloggerConfig?.categories || ''} onChange={(e) => updateBloggerConfig({ categories: e.target.value })} placeholder="Comma separated categories" /></div>
+   650→                  {bloggerConfig && <div className="grid sm:grid-cols-3 gap-4 pt-2 border-t"><div><p className="text-xs text-gray-500">Total Generated</p><p className="text-xl font-bold">{bloggerConfig.totalGenerated}</p></div><div><p className="text-xs text-gray-500">Failed</p><p className="text-xl font-bold text-red-600">{bloggerConfig.failedCount}</p></div><div><p className="text-xs text-gray-500">Last Run</p><p className="text-sm font-medium mt-1">{bloggerConfig.lastRunAt ? formatDate(bloggerConfig.lastRunAt) : 'Never'}</p></div></div>}
+   651→                </CardContent>
+   652→              </Card>
+   653→
+   654→              {/* Quick Generate */}
+   655→              <Card>
+   656→                <CardHeader><CardTitle className="text-base">Quick Generate</CardTitle><CardDescription>Generate posts immediately</CardDescription></CardHeader>
+   657→                <CardContent>
+   658→                  <div className="flex flex-wrap gap-3">
+   659→                    {[1, 3, 5].map(n => (
+   660→                      <Button key={n} onClick={() => generateNow(n)} disabled={generating} variant="outline" className="border-teal-300 hover:bg-teal-50">
+   661→                        {generating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
+   662→                        Generate {n} Post{n > 1 ? 's' : ''}
+   663→                      </Button>
+   664→                    ))}
+   665→                  </div>
+   666→                  {genProgress && <p className="mt-3 text-sm text-teal-700 bg-teal-50 p-3 rounded-lg">{genProgress}</p>}
+   667→                </CardContent>
+   668→              </Card>
+   669→
+   670→              {/* Bulk Generate by Treatment */}
+   671→              <Card>
+   672→                <CardHeader><CardTitle className="text-base">Bulk Generate by Treatment</CardTitle><CardDescription>Generate multiple articles for a specific dental treatment</CardDescription></CardHeader>
+   673→                <CardContent className="space-y-4">
+   674→                  <div className="grid sm:grid-cols-3 gap-3">
+   675→                    <Select value={bulkTreatment} onValueChange={setBulkTreatment}>
+   676→                      <SelectTrigger><SelectValue placeholder="Select treatment" /></SelectTrigger>
+   677→                      <SelectContent>{bloggerTreatments.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+   678→                    </Select>
+   679→                    <Select value={bulkCount.toString()} onValueChange={(v) => setBulkCount(parseInt(v))}>
+   680→                      <SelectTrigger><SelectValue /></SelectTrigger>
+   681→                      <SelectContent><SelectItem value="5">5 articles</SelectItem><SelectItem value="10">10 articles</SelectItem><SelectItem value="20">20 articles</SelectItem><SelectItem value="50">50 articles</SelectItem></SelectContent>
+   682→                    </Select>
+   683→                    <Button onClick={bulkGenerate} disabled={bulkGenerating || !bulkTreatment} className="bg-teal-600 hover:bg-teal-700 text-white">
+   684→                      {bulkGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Bot className="h-4 w-4 mr-2" />}
+   685→                      Bulk Generate
+   686→                    </Button>
+   687→                  </div>
+   688→                </CardContent>
+   689→              </Card>
+   690→
+   691→              {/* Generation Logs */}
+   692→              <Card>
+   693→                <CardHeader><CardTitle className="text-base">Generation History</CardTitle></CardHeader>
+   694→                <CardContent>
+   695→                  <div className="overflow-x-auto">
+   696→                    <table className="w-full text-sm">
+   697→                      <thead className="bg-gray-50 border-b"><tr><th className="text-left p-3 font-medium text-gray-500">Date</th><th className="text-left p-3 font-medium text-gray-500">Status</th><th className="text-left p-3 font-medium text-gray-500">Created</th><th className="text-left p-3 font-medium text-gray-500">Failed</th><th className="text-left p-3 font-medium text-gray-500">Duration</th></tr></thead>
+   698→                      <tbody>
+   699→                        {bloggerLogs.map((log) => (
+   700→                          <tr key={log.id} className="border-b last:border-0">
+   701→                            <td className="p-3 text-gray-600">{formatDate(log.ranAt)}</td>
+   702→                            <td className="p-3"><Badge variant={log.status === 'success' ? 'default' : 'destructive'} className={log.status === 'success' ? 'bg-green-100 text-green-700' : ''}>{log.status}</Badge></td>
+   703→                            <td className="p-3 font-medium text-green-600">{log.postsCreated}</td>
+   704→                            <td className="p-3 font-medium text-red-600">{log.postsFailed}</td>
+   705→                            <td className="p-3 text-gray-500">{log.duration}s</td>
+   706→                          </tr>
+   707→                        ))}
+   708→                        {bloggerLogs.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">No generation history yet</td></tr>}
+   709→                      </tbody>
+   710→                    </table>
+   711→                  </div>
+   712→                </CardContent>
+   713→              </Card>
+   714→            </div>
+   715→          )}
+   716→          {/* ==================== SOCIAL MEDIA TAB ==================== */}
+   717→          {activeTab === "social" && (
+   718→            <div className="space-y-6">
+   719→              {/* Auto-Share Banner */}
+   720→              <Card className="bg-gradient-to-r from-teal-600 to-emerald-600 border-0 text-white">
+   721→                <CardContent className="p-6">
+   722→                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+   723→                    <div>
+   724→                      <h3 className="text-lg font-bold flex items-center gap-2"><Send className="h-5 w-5" /> Auto-Share to All Platforms</h3>
+   725→                      <p className="text-teal-100 text-sm mt-1">Automatically share latest blog posts to all enabled social media accounts. Every auto-generated blog post will also be shared automatically.</p>
+   726→                    </div>
+   727→                    <div className="flex gap-2 shrink-0">
+   728→                      <Button onClick={() => autoShareRecent(1)} disabled={autoShareLoading} variant="outline" className="border-white/30 text-white hover:bg-white/10">
+   729→                        {autoShareLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+   730→                        Share 1 Latest
+   731→                      </Button>
+   732→                      <Button onClick={() => autoShareRecent(3)} disabled={autoShareLoading} variant="outline" className="border-white/30 text-white hover:bg-white/10">
+   733→                        {autoShareLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+   734→                        Share 3 Latest
+   735→                      </Button>
+   736→                    </div>
+   737→                  </div>
+   738→                  {testResult && (
+   739→                    <div className={`mt-4 p-3 rounded-lg text-sm ${testResult.includes("successful") ? "bg-green-500/20 text-green-100" : "bg-amber-500/20 text-amber-100"}`}>
+   740→                      {testResult}
+   741→                    </div>
+   742→                  )}
+   743→                </CardContent>
+   744→              </Card>
+   745→
+   746→              {/* Platform Configurations */}
+   747→              <Card>
+   748→                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-5 w-5" /> Platform Configuration</CardTitle><CardDescription>Connect your social media accounts. Each auto-generated blog post will be shared to all enabled platforms.</CardDescription></CardHeader>
+   749→                <CardContent className="space-y-6">
+   750→                  {/* Facebook */}
+   751→                  <PlatformConfigCard
+   752→                    platform="facebook"
+   753→                    config={socialConfigs.find((c: any) => c.platform === 'facebook')}
+   754→                    icon={"\ud83d\udccd"}
+   755→                    color="bg-blue-500"
+   756→                    fields={[
+   757→                      { key: 'accessToken', label: 'Page Access Token', placeholder: 'EAAxxxxx... (Facebook Page Access Token)', type: 'password' },
+   758→                      { key: 'pageId', label: 'Facebook Page ID', placeholder: 'e.g., 123456789012345' },
+   759→                    ]}
+   760→                    onSave={saveSocialConfig}
+   761→                    onTest={testSocialConnection}
+   762→                    loading={socialLoading}
+   763→                    setupGuide={
+   764→                      '1. Go to developers.facebook.com -> My Apps -> Your App\n' +
+   765→                      '2. Add "Facebook Login" and "Pages" products\n' +
+   766→                      '3. Under Permissions, add: pages_manage_posts, pages_read_engagement\n' +
+   767→                      '4. Generate a Page Access Token with pages_manage_posts permission\n' +
+   768→                      '5. Paste the token and your Page ID above'
+   769→                    }
+   770→                  />
+   771→
+   772→                  {/* Instagram */}
+   773→                  <PlatformConfigCard
+   774→                    platform="instagram"
+   775→                    config={socialConfigs.find((c: any) => c.platform === 'instagram')}
+   776→                    icon={"\ud83d\udcf8"}
+   777→                    color="bg-pink-500"
+   778→                    fields={[
+   779→                      { key: 'accessToken', label: 'Access Token (from Facebook)', placeholder: 'EAAxxxxx... (Use same as Facebook token)', type: 'password' },
+   780→                      { key: 'accountId', label: 'Instagram Business Account ID', placeholder: 'e.g., 17841400123456789' },
+   781→                    ]}
+   782→                    onSave={saveSocialConfig}
+   783→                    onTest={testSocialConnection}
+   784→                    loading={socialLoading}
+   785→                    setupGuide={
+   786→                      '1. Your Instagram must be a Business/Creator account linked to a Facebook Page\n' +
+   787→                      '2. Use the same Facebook Page Access Token as above\n' +
+   788→                      '3. Get your Instagram Business Account ID from Facebook Graph API Explorer:\n' +
+   789→                      '   GET /{page-id}?fields=instagram_business_account\n' +
+   790→                      '4. Add content_publishing permission to your token\n' +
+   791→                      '5. Paste the token and Account ID above'
+   792→                    }
+   793→                  />
+   794→
+   795→                  {/* Google Business Profile */}
+   796→                  <PlatformConfigCard
+   797→                    platform="google_business"
+   798→                    config={socialConfigs.find((c: any) => c.platform === 'google_business')}
+   799→                    icon={"\ud83c\udf10"}
+   800→                    color="bg-red-500"
+   801→                    fields={[
+   802→                      { key: 'accessToken', label: 'Google OAuth2 Access Token', placeholder: 'ya29.xxxxx... (Google OAuth Token)', type: 'password' },
+   803→                      { key: 'accountId', label: 'Google Account ID', placeholder: 'e.g., 123456789' },
+   804→                      { key: 'pageId', label: 'Location ID', placeholder: 'e.g., locations/12345678901234567890' },
+   805→                    ]}
+   806→                    onSave={saveSocialConfig}
+   807→                    onTest={testSocialConnection}
+   808→                    loading={socialLoading}
+   809→                    setupGuide={
+   810→                      '1. Go to console.cloud.google.com -> Create Project\n' +
+   811→                      '2. Enable "Google My Business API"\n' +
+   812→                      '3. Create OAuth 2.0 credentials\n' +
+   813→                      '4. Add scope: https://www.googleapis.com/auth/business.manage\n' +
+   814→                      '5. Get access token, Account ID, and Location ID from Google Business Profile\n' +
+   815→                      '6. Paste all three values above'
+   816→                    }
+   817→                  />
+   818→
+   819→                  {/* Twitter/X */}
+   820→                  <PlatformConfigCard
+   821→                    platform="twitter"
+   822→                    config={socialConfigs.find((c: any) => c.platform === 'twitter')}
+   823→                    icon={"\ud83d\udc26"}
+   824→                    color="bg-gray-800"
+   825→                    fields={[
+   826→                      { key: 'accessToken', label: 'Twitter API Bearer Token', placeholder: 'AAAAAAAAxxxxxx... (Twitter API v2 Bearer Token)', type: 'password' },
+   827→                    ]}
+   828→                    onSave={saveSocialConfig}
+   829→                    onTest={testSocialConnection}
+   830→                    loading={socialLoading}
+   831→                    setupGuide={
+   832→                      '1. Go to developer.twitter.com -> Create Project & App\n' +
+   833→                      '2. Set User authentication settings (OAuth 2.0)\n' +
+   834→                      '3. Go to Keys and Tokens -> Generate Bearer Token\n' +
+   835→                      '4. For posting tweets, you need OAuth 1.0a credentials\n' +
+   836→                      '5. Paste the Bearer Token above'
+   837→                    }
+   838→                  />
+   839→
+   840→                  {/* LinkedIn */}
+   841→                  <PlatformConfigCard
+   842→                    platform="linkedin"
+   843→                    config={socialConfigs.find((c: any) => c.platform === 'linkedin')}
+   844→                    icon={"\ud83d\u0e17"}
+   845→                    color="bg-blue-700"
+   846→                    fields={[
+   847→                      { key: 'accessToken', label: 'LinkedIn Access Token', placeholder: 'AQVxxxxx... (LinkedIn OAuth2 Token)', type: 'password' },
+   848→                      { key: 'accountId', label: 'LinkedIn Person ID (urn:li:person:XXXXX)', placeholder: 'e.g., ABC123xyz (just the ID part)' },
+   849→                    ]}
+   850→                    onSave={saveSocialConfig}
+   851→                    onTest={testSocialConnection}
+   852→                    loading={socialLoading}
+   853→                    setupGuide={
+   854→                      '1. Go to developer.linkedin.com -> Create App\n' +
+   855→                      '2. Add "Share on LinkedIn" and "Sign In with LinkedIn" products\n' +
+   856→                      '3. Request r_liteprofile, r_emailprofile, w_member_social permissions\n' +
+   857→                      '4. Get OAuth 2.0 Access Token (3-legged for posting)\n' +
+   858→                      '5. Get your Person ID from: https://api.linkedin.com/v2/me\n' +
+   859→                      '6. Paste token and Person ID above'
+   860→                    }
+   861→                  />
+   862→
+   863→                  {/* WhatsApp (Share Links) */}
+   864→                  <PlatformConfigCard
+   865→                    platform="whatsapp"
+   866→                    config={socialConfigs.find((c: any) => c.platform === 'whatsapp')}
+   867→                    icon={"\ud83d\udcac"}
+   868→                    color="bg-green-500"
+   869→                    fields={[]}
+   870→                    onSave={saveSocialConfig}
+   871→                    onTest={testSocialConnection}
+   872→                    loading={socialLoading}
+   873→                    isWhatsApp={true}
+   874→                  />
+   875→                </CardContent>
+   876→              </Card>
+   877→
+   878→              {/* Share History */}
+   879→              <Card>
+   880→                <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-base">Share History</CardTitle><Button variant="outline" size="sm" onClick={fetchSocial}><RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh</Button></CardHeader>
+   881→                <CardContent>
+   882→                  <div className="overflow-x-auto">
+   883→                    <table className="w-full text-sm">
+   884→                      <thead className="bg-gray-50 border-b">
+   885→                        <tr>
+   886→                          <th className="text-left p-3 font-medium text-gray-500">Date</th>
+   887→                          <th className="text-left p-3 font-medium text-gray-500">Platform</th>
+   888→                          <th className="text-left p-3 font-medium text-gray-500">Post Title</th>
+   889→                          <th className="text-left p-3 font-medium text-gray-500">Status</th>
+   890→                        </tr>
+   891→                      </thead>
+   892→                      <tbody>
+   893→                        {socialLogs.map((log: any) => (
+   894→                          <tr key={log.id} className="border-b last:border-0 hover:bg-gray-50">
+   895→                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatDate(log.postedAt)}</td>
+   896→                            <td className="p-3"><Badge variant="secondary" className="text-xs">{log.platform}</Badge></td>
+   897→                            <td className="p-3 text-gray-800 max-w-xs truncate">{log.title}</td>
+   898→                            <td className="p-3">
+   899→                              {log.status === 'success' ? (
+   900→                                <span className="text-green-600 flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> Success</span>
+   901→                              ) : (
+   902→                                <span className="text-red-600 flex items-center gap-1" title={log.response || ''}><XCircle className="h-3.5 w-3.5" /> Failed</span>
+   903→                              )}
+   904→                            </td>
+   905→                          </tr>
+   906→                        ))}
+   907→                        {socialLogs.length === 0 && (
+   908→                          <tr><td colSpan={4} className="p-6 text-center text-gray-400">No social shares yet. Configure a platform above to get started.</td></tr>
+   909→                        )}
+   910→                      </tbody>
+   911→                    </table>
+   912→                  </div>
+   913→                </CardContent>
+   914→              </Card>
+   915→            </div>
+   916→          )}
+   917→        </div>
+   918→      </main>
+   919→    </div>
+   920→  );
+   921→}
+   922→
+   923→// ==================== PLATFORM CONFIG CARD COMPONENT ====================
+   924→function PlatformConfigCard({ platform, config, icon, color, fields, onSave, onTest, loading, setupGuide, isWhatsApp = false }: {
+   925→  platform: string;
+   926→  config: any;
+   927→  icon: string;
+   928→  color: string;
+   929→  fields: { key: string; label: string; placeholder: string; type?: string }[];
+   930→  onSave: (platform: string, updates: any) => void;
+   931→  onTest: (platform: string) => void;
+   932→  loading: boolean;
+   933→  setupGuide?: string;
+   934→  isWhatsApp?: boolean;
+   935→}) {
+   936→  const [showGuide, setShowGuide] = useState(false);
+   937→  const [formValues, setFormValues] = useState<Record<string, string>>({});
+   938→
+   939→  const displayName = platform === 'google_business' ? 'Google Business Profile' : platform.charAt(0).toUpperCase() + platform.slice(1);
+   940→  const enabled = config?.enabled || false;
+   941→
+   942→  return (
+   943→    <div className="border border-gray-200 rounded-xl overflow-hidden">
+   944→      <div className={`flex items-center justify-between p-4 ${enabled ? color + '/10' : 'bg-gray-50'}`}>
+   945→        <div className="flex items-center gap-3">
+   946→          <span className="text-2xl">{icon}</span>
+   947→          <div>
+   948→            <h4 className="font-semibold text-gray-900">{displayName}</h4>
+   949→            <div className="flex items-center gap-3 mt-0.5">
+   950→              <span className={`text-xs px-2 py-0.5 rounded-full ${enabled ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+   951→                {enabled ? 'Connected' : 'Not Connected'}
+   952→              </span>
+   953→              {config?.totalPosts > 0 && <span className="text-xs text-gray-400">{config.totalPosts} posts shared</span>}
+   954→              {config?.lastPostedAt && <span className="text-xs text-gray-400">Last: {new Date(config.lastPostedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
+   955→            </div>
+   956→          </div>
+   957→        </div>
+   958→        <div className="flex items-center gap-3">
+   959→          <Switch checked={enabled} onCheckedChange={(v) => onSave(platform, { enabled: v })} />
+   960→        </div>
+   961→      </div>
+   962→
+   963→      {enabled && !isWhatsApp && (
+   964→        <div className="p-4 border-t border-gray-100 bg-white space-y-3">
+   965→          {fields.map(field => (
+   966→            <div key={field.key}>
+   967→              <Label className="text-xs text-gray-500 flex items-center gap-1"><Key className="h-3 w-3" /> {field.label}</Label>
+   968→              <Input
+   969→                type={field.type || 'text'}
+   970→                className="mt-1 font-mono text-sm"
+   971→                placeholder={field.placeholder}
+   972→                defaultValue={field.type === 'password' ? '' : (config?.[field.key] || '')}
+   973→                onChange={(e) => setFormValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+   974→              />
+   975→            </div>
+   976→          ))}
+   977→          {config?.lastError && (
+   978→            <div className="flex items-start gap-2 p-2 bg-red-50 rounded-lg text-xs text-red-600">
+   979→              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+   980→              <span>{config.lastError}</span>
+   981→            </div>
+   982→          )}
+   983→          <div className="flex gap-2 pt-2">
+   984→            <Button size="sm" onClick={() => {
+   985→              const updates: any = { enabled: true };
+   986→              Object.entries(formValues).forEach(([k, v]) => { if (v) updates[k] = v; });
+   987→              onSave(platform, updates);
+   988→            }} disabled={loading} className="bg-teal-600 hover:bg-teal-700 text-white">
+   989→              {loading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+   990→              Save & Connect
+   991→            </Button>
+   992→            <Button size="sm" variant="outline" onClick={() => onTest(platform)} disabled={loading}>
+   993→              <Send className="h-3.5 w-3.5 mr-1" /> Test Post
+   994→            </Button>
+   995→            {setupGuide && (
+   996→              <Button size="sm" variant="ghost" onClick={() => setShowGuide(!showGuide)}>
+   997→                <Eye className="h-3.5 w-3.5 mr-1" /> {showGuide ? 'Hide' : 'Setup'} Guide
+   998→              </Button>
+   999→            )}
+  1000→          </div>
+  1001→          {showGuide && setupGuide && (
+  1002→            <pre className="mt-3 p-3 bg-gray-50 rounded-lg text-xs text-gray-600 whitespace-pre-wrap font-mono border">
+  1003→              {setupGuide}
+  1004→            </pre>
+  1005→          )}
+  1006→        </div>
+  1007→      )}
+  1008→
+  1009→      {enabled && isWhatsApp && (
+  1010→        <div className="p-4 border-t border-gray-100 bg-white">
+  1011→          <p className="text-sm text-gray-600">WhatsApp does not support automated posting via API. Blog posts will generate <strong>shareable WhatsApp links</strong> that you can use in your WhatsApp Status, Groups, or broadcast lists.</p>
+  1012→          <p className="text-xs text-gray-400 mt-2">Every blog post automatically gets a WhatsApp share link. You can also share manually from the Posts tab.</p>
+  1013→        </div>
+  1014→      )}
+  1015→    </div>
+  1016→  );
+  1017→}
+  1018→
+  1019→function Save({ className }: { className?: string }) {
+  1020→  return (
+  1021→    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  1022→      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+  1023→      <polyline points="17,21 17,13 7,13 7,21"/>
+  1024→      <polyline points="7,3 7,8 15,8"/>
+  1025→    </svg>
+  1026→  );
+  1027→}
+  1028→

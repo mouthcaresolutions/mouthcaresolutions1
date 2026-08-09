@@ -1,0 +1,1049 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from "react";
+     4→import Link from "next/link";
+     5→import {
+     6→  Search,
+     7→  Plus,
+     8→  Eye,
+     9→  UserPlus,
+    10→  Loader2,
+    11→  RefreshCw,
+    12→  Phone,
+    13→  Users,
+    14→  AlertCircle,
+    15→  ChevronLeft,
+    16→  ChevronRight,
+    17→  IndianRupee,
+    18→} from "lucide-react";
+    19→import { Button } from "@/components/ui/button";
+    20→import { Input } from "@/components/ui/input";
+    21→import { Label } from "@/components/ui/label";
+    22→import { Badge } from "@/components/ui/badge";
+    23→import { Skeleton } from "@/components/ui/skeleton";
+    24→import { Textarea } from "@/components/ui/textarea";
+    25→import { Card, CardContent } from "@/components/ui/card";
+    26→import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+    27→import {
+    28→  Dialog,
+    29→  DialogContent,
+    30→  DialogHeader,
+    31→  DialogTitle,
+    32→  DialogDescription,
+    33→  DialogFooter,
+    34→} from "@/components/ui/dialog";
+    35→import {
+    36→  Select,
+    37→  SelectContent,
+    38→  SelectItem,
+    39→  SelectTrigger,
+    40→  SelectValue,
+    41→} from "@/components/ui/select";
+    42→import {
+    43→  Table,
+    44→  TableBody,
+    45→  TableCell,
+    46→  TableHead,
+    47→  TableHeader,
+    48→  TableRow,
+    49→} from "@/components/ui/table";
+    50→
+    51→// ============================================================
+    52→// Types
+    53→// ============================================================
+    54→
+    55→interface Patient {
+    56→  id: string;
+    57→  patientId: string;
+    58→  firstName: string;
+    59→  lastName: string | null;
+    60→  phone: string;
+    61→  phone2: string | null;
+    62→  email: string | null;
+    63→  dateOfBirth: string | null;
+    64→  age: number | null;
+    65→  gender: string | null;
+    66→  bloodGroup: string | null;
+    67→  address: string | null;
+    68→  city: string | null;
+    69→  state: string | null;
+    70→  pincode: string | null;
+    71→  occupation: string | null;
+    72→  referredBy: string | null;
+    73→  medicalHistory: string | null;
+    74→  dentalHistory: string | null;
+    75→  allergies: string | null;
+    76→  currentMedications: string | null;
+    77→  emergencyContactName: string | null;
+    78→  emergencyContactPhone: string | null;
+    79→  insuranceProvider: string | null;
+    80→  insuranceNumber: string | null;
+    81→  category: string | null;
+    82→  notes: string | null;
+    83→  totalVisits: number;
+    84→  totalSpent: number;
+    85→  balanceDue: number;
+    86→  lastVisitDate: string | null;
+    87→  createdAt: string;
+    88→  updatedAt: string;
+    89→}
+    90→
+    91→interface PaginationInfo {
+    92→  page: number;
+    93→  limit: number;
+    94→  total: number;
+    95→  totalPages: number;
+    96→}
+    97→
+    98→// ============================================================
+    99→// Helpers
+   100→// ============================================================
+   101→
+   102→function formatCurrency(amount: number): string {
+   103→  return new Intl.NumberFormat("en-IN", {
+   104→    style: "currency",
+   105→    currency: "INR",
+   106→    minimumFractionDigits: 0,
+   107→    maximumFractionDigits: 0,
+   108→  }).format(amount);
+   109→}
+   110→
+   111→function formatDate(dateStr: string | null): string {
+   112→  if (!dateStr) return "\u2014";
+   113→  try {
+   114→    return new Date(dateStr).toLocaleDateString("en-IN", {
+   115→      day: "2-digit",
+   116→      month: "short",
+   117→      year: "numeric",
+   118→    });
+   119→  } catch {
+   120→    return dateStr;
+   121→  }
+   122→}
+   123→
+   124→function getCategoryBadge(category: string | null) {
+   125→  if (!category) return <span className="text-sm text-gray-400">\u2014</span>;
+   126→  const catMap: Record<string, string> = {
+   127→    new: "bg-emerald-100 text-emerald-700 border-emerald-200",
+   128→    regular: "bg-blue-100 text-blue-700 border-blue-200",
+   129→    vip: "bg-amber-100 text-amber-700 border-amber-200",
+   130→  };
+   131→  const cls = catMap[category.toLowerCase()] ?? "bg-gray-100 text-gray-600 border-gray-200";
+   132→  return (
+   133→    <Badge variant="outline" className={cls}>
+   134→      {category}
+   135→    </Badge>
+   136→  );
+   137→}
+   138→
+   139→function calcAgeFromDOB(dob: string): number | null {
+   140→  if (!dob) return null;
+   141→  const birth = new Date(dob);
+   142→  const today = new Date();
+   143→  let age = today.getFullYear() - birth.getFullYear();
+   144→  const m = today.getMonth() - birth.getMonth();
+   145→  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+   146→  return age > 0 ? age : null;
+   147→}
+   148→
+   149→// ============================================================
+   150→// Registration Form Initial State
+   151→// ============================================================
+   152→
+   153→const emptyForm = {
+   154→  firstName: "",
+   155→  lastName: "",
+   156→  phone: "",
+   157→  phone2: "",
+   158→  email: "",
+   159→  dateOfBirth: "",
+   160→  gender: "",
+   161→  bloodGroup: "",
+   162→  address: "",
+   163→  city: "Vijayawada",
+   164→  state: "AP",
+   165→  pincode: "",
+   166→  occupation: "",
+   167→  medicalHistory: "",
+   168→  dentalHistory: "",
+   169→  allergies: "",
+   170→  currentMedications: "",
+   171→  emergencyContactName: "",
+   172→  emergencyContactPhone: "",
+   173→  referredBy: "",
+   174→  insuranceProvider: "",
+   175→  insuranceNumber: "",
+   176→  category: "New",
+   177→  notes: "",
+   178→};
+   179→
+   180→// ============================================================
+   181→// Main Component
+   182→// ============================================================
+   183→
+   184→export default function PatientManagementPage() {
+   185→  // Data state
+   186→  const [patients, setPatients] = useState<Patient[]>([]);
+   187→  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 20, total: 0, totalPages: 0 });
+   188→  const [loading, setLoading] = useState(true);
+   189→  const [error, setError] = useState<string | null>(null);
+   190→
+   191→  // Search & filter state
+   192→  const [searchQuery, setSearchQuery] = useState("");
+   193→  const [activeCategory, setActiveCategory] = useState("All");
+   194→  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   195→  const [debouncedSearch, setDebouncedSearch] = useState("");
+   196→
+   197→  // Dialog state
+   198→  const [dialogOpen, setDialogOpen] = useState(false);
+   199→  const [form, setForm] = useState(emptyForm);
+   200→  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+   201→  const [submitting, setSubmitting] = useState(false);
+   202→
+   203→  // ============================================================
+   204→  // Fetch Patients
+   205→  // ============================================================
+   206→
+   207→  const fetchPatients = useCallback(async (search = "", category = "", page = 1) => {
+   208→    setLoading(true);
+   209→    setError(null);
+   210→    try {
+   211→      const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+   212→      if (!token) {
+   213→        setError("Authentication required. Please log in.");
+   214→        setLoading(false);
+   215→        return;
+   216→      }
+   217→
+   218→      const params = new URLSearchParams();
+   219→      if (search) params.set("search", search);
+   220→      if (category && category !== "All") params.set("category", category);
+   221→      params.set("page", String(page));
+   222→      params.set("limit", "20");
+   223→
+   224→      const res = await fetch(`/api/crm/patients?${params.toString()}`, {
+   225→        headers: {
+   226→          Authorization: `Bearer ${token}`,
+   227→          "Content-Type": "application/json",
+   228→        },
+   229→      });
+   230→
+   231→      if (res.status === 401) {
+   232→        setError("Session expired. Please log in again.");
+   233→        setLoading(false);
+   234→        return;
+   235→      }
+   236→
+   237→      if (!res.ok) throw new Error(`Failed to load patients (HTTP ${res.status})`);
+   238→
+   239→      const json = await res.json();
+   240→      setPatients(json.patients ?? []);
+   241→      setPagination(json.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 0 });
+   242→    } catch (err) {
+   243→      console.error("Fetch patients error:", err);
+   244→      setError(err instanceof Error ? err.message : "Failed to load patients.");
+   245→    } finally {
+   246→      setLoading(false);
+   247→    }
+   248→  }, []);
+   249→
+   250→  // Load on mount & when filters change
+   251→  useEffect(() => {
+   252→    fetchPatients(debouncedSearch, activeCategory, 1);
+   253→  }, [debouncedSearch, activeCategory, fetchPatients]);
+   254→
+   255→  // Debounced search handler
+   256→  const handleSearchChange = (value: string) => {
+   257→    setSearchQuery(value);
+   258→    if (debounceRef.current) clearTimeout(debounceRef.current);
+   259→    debounceRef.current = setTimeout(() => {
+   260→      setDebouncedSearch(value);
+   261→    }, 400);
+   262→  };
+   263→
+   264→  // Page change handler
+   265→  const handlePageChange = (newPage: number) => {
+   266→    fetchPatients(debouncedSearch, activeCategory, newPage);
+   267→  };
+   268→
+   269→  // ============================================================
+   270→  // Category Tabs
+   271→  // ============================================================
+   272→
+   273→  const categoryTabs = [
+   274→    { label: "All", value: "All" },
+   275→    { label: "New", value: "New" },
+   276→    { label: "Regular", value: "Regular" },
+   277→    { label: "VIP", value: "VIP" },
+   278→  ];
+   279→
+   280→  // ============================================================
+   281→  // Registration Form Handlers
+   282→  // ============================================================
+   283→
+   284→  const openRegisterDialog = () => {
+   285→    setForm(emptyForm);
+   286→    setFormErrors({});
+   287→    setDialogOpen(true);
+   288→  };
+   289→
+   290→  const updateForm = (field: string, value: string) => {
+   291→    setForm((prev) => ({ ...prev, [field]: value }));
+   292→    // Clear error for field on change
+   293→    if (formErrors[field]) {
+   294→      setFormErrors((prev) => {
+   295→        const next = { ...prev };
+   296→        delete next[field];
+   297→        return next;
+   298→      });
+   299→    }
+   300→  };
+   301→
+   302→  const validateForm = (): boolean => {
+   303→    const errors: Record<string, string> = {};
+   304→    if (!form.firstName.trim()) errors.firstName = "First name is required";
+   305→    if (!form.phone.trim()) errors.phone = "Phone number is required";
+   306→    else if (!/^\+?[\d\s-]{10,15}$/.test(form.phone.trim().replace(/\s/g, "")))
+   307→      errors.phone = "Enter a valid phone number";
+   308→
+   309→    setFormErrors(errors);
+   310→    return Object.keys(errors).length === 0;
+   311→  };
+   312→
+   313→  const handleSubmit = async () => {
+   314→    if (!validateForm()) return;
+   315→    setSubmitting(true);
+   316→    try {
+   317→      const token = localStorage.getItem("admin_token");
+   318→      if (!token) {
+   319→        setError("Authentication required.");
+   320→        return;
+   321→      }
+   322→
+   323→      const age = calcAgeFromDOB(form.dateOfBirth);
+   324→      const payload = {
+   325→        ...form,
+   326→        age: age || null,
+   327→        dateOfBirth: form.dateOfBirth || null,
+   328→        lastName: form.lastName || null,
+   329→        phone2: form.phone2 || null,
+   330→        email: form.email || null,
+   331→        gender: form.gender || null,
+   332→        bloodGroup: form.bloodGroup || null,
+   333→        address: form.address || null,
+   334→        city: form.city || "Vijayawada",
+   335→        state: form.state || "AP",
+   336→        pincode: form.pincode || null,
+   337→        occupation: form.occupation || null,
+   338→        medicalHistory: form.medicalHistory || null,
+   339→        dentalHistory: form.dentalHistory || null,
+   340→        allergies: form.allergies || null,
+   341→        currentMedications: form.currentMedications || null,
+   342→        emergencyContactName: form.emergencyContactName || null,
+   343→        emergencyContactPhone: form.emergencyContactPhone || null,
+   344→        referredBy: form.referredBy || null,
+   345→        insuranceProvider: form.insuranceProvider || null,
+   346→        insuranceNumber: form.insuranceNumber || null,
+   347→        category: form.category || "New",
+   348→        notes: form.notes || null,
+   349→      };
+   350→
+   351→      const res = await fetch("/api/crm/patients", {
+   352→        method: "POST",
+   353→        headers: {
+   354→          Authorization: `Bearer ${token}`,
+   355→          "Content-Type": "application/json",
+   356→        },
+   357→        body: JSON.stringify(payload),
+   358→      });
+   359→
+   360→      if (!res.ok) {
+   361→        const data = await res.json().catch(() => ({}));
+   362→        throw new Error(data.error || `Registration failed (HTTP ${res.status})`);
+   363→      }
+   364→
+   365→      setDialogOpen(false);
+   366→      setForm(emptyForm);
+   367→      fetchPatients(debouncedSearch, activeCategory, 1);
+   368→    } catch (err) {
+   369→      console.error("Register patient error:", err);
+   370→      setError(err instanceof Error ? err.message : "Failed to register patient.");
+   371→    } finally {
+   372→      setSubmitting(false);
+   373→    }
+   374→  };
+   375→
+   376→  // ============================================================
+   377→  // Render
+   378→  // ============================================================
+   379→
+   380→  return (
+   381→    <div className="space-y-6">
+   382→      {/* ========== Top Bar ========== */}
+   383→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   384→        <div>
+   385→          <h1 className="text-2xl font-bold text-gray-900">Patient Management</h1>
+   386→          <p className="mt-1 text-sm text-gray-500">
+   387→            Register and manage all patient records
+   388→          </p>
+   389→        </div>
+   390→        <Button onClick={openRegisterDialog} className="gap-2 bg-teal-600 hover:bg-teal-700 text-white">
+   391→          <UserPlus className="h-4 w-4" />
+   392→          Register New Patient
+   393→        </Button>
+   394→      </div>
+   395→
+   396→      {/* ========== Error State ========== */}
+   397→      {error && (
+   398→        <Card className="border-red-200 bg-red-50">
+   399→          <CardContent className="flex items-center gap-3 p-4">
+   400→            <AlertCircle className="h-5 w-5 shrink-0 text-red-500" />
+   401→            <div className="min-w-0 flex-1">
+   402→              <p className="text-sm font-medium text-red-800">Something went wrong</p>
+   403→              <p className="mt-0.5 text-xs text-red-600">{error}</p>
+   404→            </div>
+   405→            <Button
+   406→              variant="outline"
+   407→              size="sm"
+   408→              onClick={() => { setError(null); fetchPatients(debouncedSearch, activeCategory, 1); }}
+   409→              className="ml-auto shrink-0 border-red-200 text-red-700 hover:bg-red-100"
+   410→            >
+   411→              Retry
+   412→            </Button>
+   413→          </CardContent>
+   414→        </Card>
+   415→      )}
+   416→
+   417→      {/* ========== Search Bar ========== */}
+   418→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   419→        <div className="relative max-w-sm flex-1">
+   420→          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+   421→          <Input
+   422→            placeholder="Search by name, phone, or patient ID..."
+   423→            value={searchQuery}
+   424→            onChange={(e) => handleSearchChange(e.target.value)}
+   425→            className="pl-10"
+   426→          />
+   427→        </div>
+   428→        <div className="flex items-center gap-2">
+   429→          <Button
+   430→            variant="outline"
+   431→            size="sm"
+   432→            onClick={() => fetchPatients(debouncedSearch, activeCategory, 1)}
+   433→            disabled={loading}
+   434→            className="gap-2"
+   435→          >
+   436→            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+   437→            Refresh
+   438→          </Button>
+   439→        </div>
+   440→      </div>
+   441→
+   442→      {/* ========== Category Filter Tabs ========== */}
+   443→      <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 w-fit">
+   444→        {categoryTabs.map((tab) => {
+   445→          const isActive = activeCategory === tab.value;
+   446→          const count = tab.value === "All" ? pagination.total : undefined;
+   447→          return (
+   448→            <button
+   449→              key={tab.value}
+   450→              onClick={() => setActiveCategory(tab.value)}
+   451→              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+   452→                isActive
+   453→                  ? "bg-white text-teal-700 shadow-sm"
+   454→                  : "text-gray-600 hover:text-gray-900"
+   455→              }`}
+   456→            >
+   457→              {tab.label}
+   458→              {count !== undefined && (
+   459→                <span className="ml-1.5 text-xs text-gray-400">({count})</span>
+   460→              )}
+   461→            </button>
+   462→          );
+   463→        })}
+   464→      </div>
+   465→
+   466→      {/* ========== Patient Table ========== */}
+   467→      <Card className="overflow-hidden shadow-sm border-0">
+   468→        <CardContent className="p-0">
+   469→          {loading && patients.length === 0 ? (
+   470→            <div className="space-y-0">
+   471→              {/* Table Header Skeleton */}
+   472→              <div className="border-b px-4 py-3">
+   473→                <div className="flex gap-6">
+   474→                  {Array.from({ length: 8 }).map((_, i) => (
+   475→                    <Skeleton key={i} className="h-4 w-16" />
+   476→                  ))}
+   477→                </div>
+   478→              </div>
+   479→              {/* Row Skeletons */}
+   480→              {Array.from({ length: 8 }).map((_, i) => (
+   481→                <div key={i} className="flex items-center gap-6 border-b px-4 py-4 last:border-b-0">
+   482→                  <Skeleton className="h-4 w-20" />
+   483→                  <Skeleton className="h-4 w-32" />
+   484→                  <Skeleton className="h-4 w-24" />
+   485→                  <Skeleton className="h-4 w-12" />
+   486→                  <Skeleton className="h-4 w-8" />
+   487→                  <Skeleton className="h-4 w-16" />
+   488→                  <Skeleton className="h-4 w-20" />
+   489→                  <Skeleton className="h-4 w-16" />
+   490→                </div>
+   491→              ))}
+   492→            </div>
+   493→          ) : patients.length === 0 ? (
+   494→            <div className="flex flex-col items-center justify-center py-16 text-center">
+   495→              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+   496→                <Users className="h-8 w-8 text-gray-400" />
+   497→              </div>
+   498→              <p className="mt-4 text-base font-medium text-gray-700">No patients found</p>
+   499→              <p className="mt-1 text-sm text-gray-400">
+   500→                {debouncedSearch || activeCategory !== "All"
+   501→                  ? "Try adjusting your search or filter criteria"
+   502→                  : "Register your first patient to get started"}
+   503→              </p>
+   504→              {!debouncedSearch && activeCategory === "All" && (
+   505→                <Button
+   506→                  onClick={openRegisterDialog}
+   507→                  className="mt-4 gap-2 bg-teal-600 hover:bg-teal-700 text-white"
+   508→                >
+   509→                  <UserPlus className="h-4 w-4" />
+   510→                  Register New Patient
+   511→                </Button>
+   512→              )}
+   513→            </div>
+   514→          ) : (
+   515→            <ScrollArea className="w-full">
+   516→              <Table>
+   517→                <TableHeader>
+   518→                  <TableRow className="hover:bg-transparent bg-gray-50/80">
+   519→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+   520→                      Patient ID
+   521→                    </TableHead>
+   522→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+   523→                      Name
+   524→                    </TableHead>
+   525→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">
+   526→                      Phone
+   527→                    </TableHead>
+   528→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+   529→                      Gender
+   530→                    </TableHead>
+   531→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+   532→                      Age
+   533→                    </TableHead>
+   534→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+   535→                      Category
+   536→                    </TableHead>
+   537→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider hidden xl:table-cell">
+   538→                      Last Visit
+   539→                    </TableHead>
+   540→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider text-right hidden xl:table-cell">
+   541→                      Balance
+   542→                    </TableHead>
+   543→                    <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
+   544→                      Actions
+   545→                    </TableHead>
+   546→                  </TableRow>
+   547→                </TableHeader>
+   548→                <TableBody>
+   549→                  {patients.map((patient) => (
+   550→                    <TableRow
+   551→                      key={patient.id}
+   552→                      className="group hover:bg-teal-50/50 transition-colors"
+   553→                    >
+   554→                      <TableCell>
+   555→                        <span className="font-mono text-xs text-gray-500">
+   556→                          {patient.patientId}
+   557→                        </span>
+   558→                      </TableCell>
+   559→                      <TableCell>
+   560→                        <div className="flex items-center gap-2.5">
+   561→                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-700">
+   562→                            {patient.firstName.charAt(0).toUpperCase()}
+   563→                          </div>
+   564→                          <div className="min-w-0">
+   565→                            <p className="truncate text-sm font-medium text-gray-900">
+   566→                              {patient.firstName}
+   567→                              {patient.lastName ? ` ${patient.lastName}` : ""}
+   568→                            </p>
+   569→                            {patient.email && (
+   570→                              <p className="truncate text-xs text-gray-400">{patient.email}</p>
+   571→                            )}
+   572→                          </div>
+   573→                        </div>
+   574→                      </TableCell>
+   575→                      <TableCell className="hidden md:table-cell">
+   576→                        <span className="text-sm text-gray-600">{patient.phone}</span>
+   577→                      </TableCell>
+   578→                      <TableCell className="hidden lg:table-cell">
+   579→                        <span className="text-sm text-gray-600">{patient.gender || "\u2014"}</span>
+   580→                      </TableCell>
+   581→                      <TableCell className="hidden lg:table-cell">
+   582→                        <span className="text-sm text-gray-600">{patient.age ?? "\u2014"}</span>
+   583→                      </TableCell>
+   584→                      <TableCell>{getCategoryBadge(patient.category)}</TableCell>
+   585→                      <TableCell className="hidden xl:table-cell">
+   586→                        <span className="text-sm text-gray-600">
+   587→                          {formatDate(patient.lastVisitDate)}
+   588→                        </span>
+   589→                      </TableCell>
+   590→                      <TableCell className="hidden xl:table-cell text-right">
+   591→                        <span
+   592→                          className={`text-sm font-medium ${
+   593→                            patient.balanceDue > 0 ? "text-red-600" : "text-gray-600"
+   594→                          }`}
+   595→                        >
+   596→                          {patient.balanceDue > 0 ? formatCurrency(patient.balanceDue) : "\u2014"}
+   597→                        </span>
+   598→                      </TableCell>
+   599→                      <TableCell className="text-right">
+   600→                        <Link href={`/rajeshark/crm/patient/${patient.id}`}>
+   601→                          <Button variant="ghost" size="sm" className="gap-1.5 text-teal-600 hover:text-teal-700 hover:bg-teal-50">
+   602→                            <Eye className="h-4 w-4" />
+   603→                            <span className="hidden sm:inline">View</span>
+   604→                          </Button>
+   605→                        </Link>
+   606→                      </TableCell>
+   607→                    </TableRow>
+   608→                  ))}
+   609→                </TableBody>
+   610→              </Table>
+   611→              <ScrollBar orientation="horizontal" />
+   612→            </ScrollArea>
+   613→          )}
+   614→        </CardContent>
+   615→
+   616→        {/* ========== Pagination ========== */}
+   617→        {pagination.totalPages > 1 && (
+   618→          <div className="flex items-center justify-between border-t px-4 py-3">
+   619→            <p className="text-sm text-gray-500">
+   620→              Showing{" "}
+   621→              <span className="font-medium text-gray-700">
+   622→                {(pagination.page - 1) * pagination.limit + 1}
+   623→              </span>{" "}
+   624→              to{" "}
+   625→              <span className="font-medium text-gray-700">
+   626→                {Math.min(pagination.page * pagination.limit, pagination.total)}
+   627→              </span>{" "}
+   628→              of <span className="font-medium text-gray-700">{pagination.total}</span> patients
+   629→            </p>
+   630→            <div className="flex items-center gap-1">
+   631→              <Button
+   632→                variant="outline"
+   633→                size="sm"
+   634→                disabled={pagination.page <= 1}
+   635→                onClick={() => handlePageChange(pagination.page - 1)}
+   636→                className="h-8 w-8 p-0"
+   637→              >
+   638→                <ChevronLeft className="h-4 w-4" />
+   639→              </Button>
+   640→              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+   641→                .filter((p) => {
+   642→                  // Show first, last, current, and neighbors
+   643→                  return (
+   644→                    p === 1 ||
+   645→                    p === pagination.totalPages ||
+   646→                    Math.abs(p - pagination.page) <= 1
+   647→                  );
+   648→                })
+   649→                .reduce<(number | "divider")[]>((acc, page, idx, arr) => {
+   650→                  if (idx > 0 && page - arr[idx - 1] > 1) {
+   651→                    acc.push("divider");
+   652→                  }
+   653→                  acc.push(page);
+   654→                  return acc;
+   655→                }, [])
+   656→                .map((item, idx) =>
+   657→                  item === "divider" ? (
+   658→                    <span key={`div-${idx}`} className="px-1 text-xs text-gray-400">
+   659→                      ...
+   660→                    </span>
+   661→                  ) : (
+   662→                    <Button
+   663→                      key={item}
+   664→                      variant={item === pagination.page ? "default" : "outline"}
+   665→                      size="sm"
+   666→                      onClick={() => handlePageChange(item)}
+   667→                      className={`h-8 w-8 p-0 ${
+   668→                        item === pagination.page
+   669→                          ? "bg-teal-600 text-white hover:bg-teal-700"
+   670→                          : ""
+   671→                      }`}
+   672→                    >
+   673→                      {item}
+   674→                    </Button>
+   675→                  )
+   676→                )}
+   677→              <Button
+   678→                variant="outline"
+   679→                size="sm"
+   680→                disabled={pagination.page >= pagination.totalPages}
+   681→                onClick={() => handlePageChange(pagination.page + 1)}
+   682→                className="h-8 w-8 p-0"
+   683→              >
+   684→                <ChevronRight className="h-4 w-4" />
+   685→              </Button>
+   686→            </div>
+   687→          </div>
+   688→        )}
+   689→      </Card>
+   690→
+   691→      {/* ========== Registration Dialog ========== */}
+   692→      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!submitting) setDialogOpen(open); }}>
+   693→        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+   694→          <DialogHeader>
+   695→            <DialogTitle className="flex items-center gap-2 text-xl">
+   696→              <UserPlus className="h-5 w-5 text-teal-600" />
+   697→              Register New Patient
+   698→            </DialogTitle>
+   699→            <DialogDescription>
+   700→              Fill in the patient details below. Fields marked with * are required.
+   701→            </DialogDescription>
+   702→          </DialogHeader>
+   703→
+   704→          <ScrollArea className="flex-1 -mx-6 px-6">
+   705→            <div className="space-y-6 py-2">
+   706→              {/* ---- Personal Information ---- */}
+   707→              <div>
+   708→                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+   709→                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">1</span>
+   710→                  Personal Information
+   711→                </h3>
+   712→                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   713→                  <div className="space-y-1.5">
+   714→                    <Label htmlFor="firstName">
+   715→                      First Name <span className="text-red-500">*</span>
+   716→                    </Label>
+   717→                    <Input
+   718→                      id="firstName"
+   719→                      placeholder="e.g. Ravi"
+   720→                      value={form.firstName}
+   721→                      onChange={(e) => updateForm("firstName", e.target.value)}
+   722→                      className={formErrors.firstName ? "border-red-300 focus-visible:ring-red-300" : ""}
+   723→                    />
+   724→                    {formErrors.firstName && (
+   725→                      <p className="text-xs text-red-500">{formErrors.firstName}</p>
+   726→                    )}
+   727→                  </div>
+   728→                  <div className="space-y-1.5">
+   729→                    <Label htmlFor="lastName">Last Name</Label>
+   730→                    <Input
+   731→                      id="lastName"
+   732→                      placeholder="e.g. Kumar"
+   733→                      value={form.lastName}
+   734→                      onChange={(e) => updateForm("lastName", e.target.value)}
+   735→                    />
+   736→                  </div>
+   737→                  <div className="space-y-1.5">
+   738→                    <Label htmlFor="phone">
+   739→                      Phone <span className="text-red-500">*</span>
+   740→                    </Label>
+   741→                    <Input
+   742→                      id="phone"
+   743→                      type="tel"
+   744→                      placeholder="e.g. 9876543210"
+   745→                      value={form.phone}
+   746→                      onChange={(e) => updateForm("phone", e.target.value)}
+   747→                      className={formErrors.phone ? "border-red-300 focus-visible:ring-red-300" : ""}
+   748→                    />
+   749→                    {formErrors.phone && (
+   750→                      <p className="text-xs text-red-500">{formErrors.phone}</p>
+   751→                    )}
+   752→                  </div>
+   753→                  <div className="space-y-1.5">
+   754→                    <Label htmlFor="phone2">Alternate Phone</Label>
+   755→                    <Input
+   756→                      id="phone2"
+   757→                      type="tel"
+   758→                      placeholder="e.g. 9876543211"
+   759→                      value={form.phone2}
+   760→                      onChange={(e) => updateForm("phone2", e.target.value)}
+   761→                    />
+   762→                  </div>
+   763→                  <div className="space-y-1.5 sm:col-span-2">
+   764→                    <Label htmlFor="email">Email</Label>
+   765→                    <Input
+   766→                      id="email"
+   767→                      type="email"
+   768→                      placeholder="e.g. patient@example.com"
+   769→                      value={form.email}
+   770→                      onChange={(e) => updateForm("email", e.target.value)}
+   771→                    />
+   772→                  </div>
+   773→                </div>
+   774→              </div>
+   775→
+   776→              {/* ---- Demographics ---- */}
+   777→              <div>
+   778→                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+   779→                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">2</span>
+   780→                  Demographics
+   781→                </h3>
+   782→                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+   783→                  <div className="space-y-1.5">
+   784→                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+   785→                    <Input
+   786→                      id="dateOfBirth"
+   787→                      type="date"
+   788→                      value={form.dateOfBirth}
+   789→                      onChange={(e) => updateForm("dateOfBirth", e.target.value)}
+   790→                    />
+   791→                  </div>
+   792→                  <div className="space-y-1.5">
+   793→                    <Label>Age</Label>
+   794→                    <Input
+   795→                      value={calcAgeFromDOB(form.dateOfBirth) != null ? `${calcAgeFromDOB(form.dateOfBirth)} yrs` : "\u2014 Auto-calculated"}
+   796→                      disabled
+   797→                      className="bg-gray-50"
+   798→                    />
+   799→                  </div>
+   800→                  <div className="space-y-1.5">
+   801→                    <Label htmlFor="gender">Gender</Label>
+   802→                    <Select value={form.gender} onValueChange={(v) => updateForm("gender", v)}>
+   803→                      <SelectTrigger className="w-full">
+   804→                        <SelectValue placeholder="Select gender" />
+   805→                      </SelectTrigger>
+   806→                      <SelectContent>
+   807→                        <SelectItem value="Male">Male</SelectItem>
+   808→                        <SelectItem value="Female">Female</SelectItem>
+   809→                        <SelectItem value="Other">Other</SelectItem>
+   810→                      </SelectContent>
+   811→                    </Select>
+   812→                  </div>
+   813→                  <div className="space-y-1.5">
+   814→                    <Label htmlFor="bloodGroup">Blood Group</Label>
+   815→                    <Select value={form.bloodGroup} onValueChange={(v) => updateForm("bloodGroup", v)}>
+   816→                      <SelectTrigger className="w-full">
+   817→                        <SelectValue placeholder="Select" />
+   818→                      </SelectTrigger>
+   819→                      <SelectContent>
+   820→                        {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
+   821→                          <SelectItem key={bg} value={bg}>
+   822→                            {bg}
+   823→                          </SelectItem>
+   824→                        ))}
+   825→                      </SelectContent>
+   826→                    </Select>
+   827→                  </div>
+   828→                </div>
+   829→              </div>
+   830→
+   831→              {/* ---- Address ---- */}
+   832→              <div>
+   833→                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+   834→                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">3</span>
+   835→                  Address
+   836→                </h3>
+   837→                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   838→                  <div className="space-y-1.5 sm:col-span-2">
+   839→                    <Label htmlFor="address">Address</Label>
+   840→                    <Textarea
+   841→                      id="address"
+   842→                      placeholder="Street address, landmark, etc."
+   843→                      value={form.address}
+   844→                      onChange={(e) => updateForm("address", e.target.value)}
+   845→                      rows={2}
+   846→                    />
+   847→                  </div>
+   848→                  <div className="space-y-1.5">
+   849→                    <Label htmlFor="city">City</Label>
+   850→                    <Input
+   851→                      id="city"
+   852→                      placeholder="City"
+   853→                      value={form.city}
+   854→                      onChange={(e) => updateForm("city", e.target.value)}
+   855→                    />
+   856→                  </div>
+   857→                  <div className="space-y-1.5">
+   858→                    <Label htmlFor="state">State</Label>
+   859→                    <Input
+   860→                      id="state"
+   861→                      placeholder="State"
+   862→                      value={form.state}
+   863→                      onChange={(e) => updateForm("state", e.target.value)}
+   864→                    />
+   865→                  </div>
+   866→                  <div className="space-y-1.5">
+   867→                    <Label htmlFor="pincode">Pincode</Label>
+   868→                    <Input
+   869→                      id="pincode"
+   870→                      placeholder="e.g. 520001"
+   871→                      value={form.pincode}
+   872→                      onChange={(e) => updateForm("pincode", e.target.value)}
+   873→                    />
+   874→                  </div>
+   875→                  <div className="space-y-1.5">
+   876→                    <Label htmlFor="occupation">Occupation</Label>
+   877→                    <Input
+   878→                      id="occupation"
+   879→                      placeholder="e.g. Software Engineer"
+   880→                      value={form.occupation}
+   881→                      onChange={(e) => updateForm("occupation", e.target.value)}
+   882→                    />
+   883→                  </div>
+   884→                </div>
+   885→              </div>
+   886→
+   887→              {/* ---- Medical Information ---- */}
+   888→              <div>
+   889→                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+   890→                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">4</span>
+   891→                  Medical Information
+   892→                </h3>
+   893→                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   894→                  <div className="space-y-1.5 sm:col-span-2">
+   895→                    <Label htmlFor="medicalHistory">Medical History</Label>
+   896→                    <Textarea
+   897→                      id="medicalHistory"
+   898→                      placeholder="Diabetes, Hypertension, Heart conditions, etc."
+   899→                      value={form.medicalHistory}
+   900→                      onChange={(e) => updateForm("medicalHistory", e.target.value)}
+   901→                      rows={2}
+   902→                    />
+   903→                  </div>
+   904→                  <div className="space-y-1.5 sm:col-span-2">
+   905→                    <Label htmlFor="dentalHistory">Dental History</Label>
+   906→                    <Textarea
+   907→                      id="dentalHistory"
+   908→                      placeholder="Previous dental procedures, ongoing treatments, etc."
+   909→                      value={form.dentalHistory}
+   910→                      onChange={(e) => updateForm("dentalHistory", e.target.value)}
+   911→                      rows={2}
+   912→                    />
+   913→                  </div>
+   914→                  <div className="space-y-1.5">
+   915→                    <Label htmlFor="allergies">Allergies</Label>
+   916→                    <Textarea
+   917→                      id="allergies"
+   918→                      placeholder="Drug allergies, food allergies, etc."
+   919→                      value={form.allergies}
+   920→                      onChange={(e) => updateForm("allergies", e.target.value)}
+   921→                      rows={2}
+   922→                    />
+   923→                  </div>
+   924→                  <div className="space-y-1.5">
+   925→                    <Label htmlFor="currentMedications">Current Medications</Label>
+   926→                    <Textarea
+   927→                      id="currentMedications"
+   928→                      placeholder="List any medications the patient is currently taking"
+   929→                      value={form.currentMedications}
+   930→                      onChange={(e) => updateForm("currentMedications", e.target.value)}
+   931→                      rows={2}
+   932→                    />
+   933→                  </div>
+   934→                  <div className="space-y-1.5">
+   935→                    <Label htmlFor="emergencyContactName">Emergency Contact Name</Label>
+   936→                    <Input
+   937→                      id="emergencyContactName"
+   938→                      placeholder="Guardian / family member"
+   939→                      value={form.emergencyContactName}
+   940→                      onChange={(e) => updateForm("emergencyContactName", e.target.value)}
+   941→                    />
+   942→                  </div>
+   943→                  <div className="space-y-1.5">
+   944→                    <Label htmlFor="emergencyContactPhone">Emergency Contact Phone</Label>
+   945→                    <Input
+   946→                      id="emergencyContactPhone"
+   947→                      type="tel"
+   948→                      placeholder="Contact number"
+   949→                      value={form.emergencyContactPhone}
+   950→                      onChange={(e) => updateForm("emergencyContactPhone", e.target.value)}
+   951→                    />
+   952→                  </div>
+   953→                </div>
+   954→              </div>
+   955→
+   956→              {/* ---- Other Details ---- */}
+   957→              <div>
+   958→                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+   959→                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">5</span>
+   960→                  Other Details
+   961→                </h3>
+   962→                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   963→                  <div className="space-y-1.5">
+   964→                    <Label htmlFor="referredBy">Referred By</Label>
+   965→                    <Input
+   966→                      id="referredBy"
+   967→                      placeholder="Doctor name or source"
+   968→                      value={form.referredBy}
+   969→                      onChange={(e) => updateForm("referredBy", e.target.value)}
+   970→                    />
+   971→                  </div>
+   972→                  <div className="space-y-1.5">
+   973→                    <Label htmlFor="category">Category</Label>
+   974→                    <Select value={form.category} onValueChange={(v) => updateForm("category", v)}>
+   975→                      <SelectTrigger className="w-full">
+   976→                        <SelectValue placeholder="Select category" />
+   977→                      </SelectTrigger>
+   978→                      <SelectContent>
+   979→                        <SelectItem value="New">New</SelectItem>
+   980→                        <SelectItem value="Regular">Regular</SelectItem>
+   981→                        <SelectItem value="VIP">VIP</SelectItem>
+   982→                      </SelectContent>
+   983→                    </Select>
+   984→                  </div>
+   985→                  <div className="space-y-1.5">
+   986→                    <Label htmlFor="insuranceProvider">Insurance Provider</Label>
+   987→                    <Input
+   988→                      id="insuranceProvider"
+   989→                      placeholder="Insurance company name"
+   990→                      value={form.insuranceProvider}
+   991→                      onChange={(e) => updateForm("insuranceProvider", e.target.value)}
+   992→                    />
+   993→                  </div>
+   994→                  <div className="space-y-1.5">
+   995→                    <Label htmlFor="insuranceNumber">Insurance Number</Label>
+   996→                    <Input
+   997→                      id="insuranceNumber"
+   998→                      placeholder="Policy / claim number"
+   999→                      value={form.insuranceNumber}
+  1000→                      onChange={(e) => updateForm("insuranceNumber", e.target.value)}
+  1001→                    />
+  1002→                  </div>
+  1003→                  <div className="space-y-1.5 sm:col-span-2">
+  1004→                    <Label htmlFor="notes">Notes</Label>
+  1005→                    <Textarea
+  1006→                      id="notes"
+  1007→                      placeholder="Any additional notes about this patient"
+  1008→                      value={form.notes}
+  1009→                      onChange={(e) => updateForm("notes", e.target.value)}
+  1010→                      rows={2}
+  1011→                    />
+  1012→                  </div>
+  1013→                </div>
+  1014→              </div>
+  1015→            </div>
+  1016→          </ScrollArea>
+  1017→
+  1018→          <DialogFooter className="border-t pt-4 mt-2">
+  1019→            <Button
+  1020→              variant="outline"
+  1021→              onClick={() => { if (!submitting) setDialogOpen(false); }}
+  1022→              disabled={submitting}
+  1023→            >
+  1024→              Cancel
+  1025→            </Button>
+  1026→            <Button
+  1027→              onClick={handleSubmit}
+  1028→              disabled={submitting}
+  1029→              className="gap-2 bg-teal-600 hover:bg-teal-700 text-white"
+  1030→            >
+  1031→              {submitting ? (
+  1032→                <>
+  1033→                  <Loader2 className="h-4 w-4 animate-spin" />
+  1034→                  Registering...
+  1035→                </>
+  1036→              ) : (
+  1037→                <>
+  1038→                  <UserPlus className="h-4 w-4" />
+  1039→                  Register Patient
+  1040→                </>
+  1041→              )}
+  1042→            </Button>
+  1043→          </DialogFooter>
+  1044→        </DialogContent>
+  1045→      </Dialog>
+  1046→    </div>
+  1047→  );
+  1048→}
+  1049→

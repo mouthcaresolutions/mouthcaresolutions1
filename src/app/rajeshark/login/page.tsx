@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
           </div>
           <CardTitle className="text-2xl text-teal-900">Admin Dashboard</CardTitle>
           <CardDescription className="text-teal-600">
-            Mouth Care Solutions — Content Management
+            Mouth Care Solutions — Content & Clinic Management
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,7 +100,8 @@ export default function AdminLoginPage() {
             </Button>
           </form>
           <p className="text-xs text-gray-400 text-center mt-4">
-            Default credentials: admin / admin123
+            Admin: admin / admin123<br/>
+            Front Office: frontoffice / frontoffice123
           </p>
         </CardContent>
       </Card>

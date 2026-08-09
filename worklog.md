@@ -53,3 +53,31 @@ Stage Summary:
 - Social media links (Facebook, YouTube, Instagram, Threads) confirmed in Navbar + Footer
 - Deployment guide ready for Vercel + Hostinger DNS approach
 
+---
+Task ID: crm-build
+Agent: Main Agent + 4 Sub-agents
+Task: Build complete dental clinic CRM system
+
+Work Log:
+- Created 6 CRM database tables on Turso: Patient, Appointment, PatientVisit, Payment, TreatmentPrice, CRMDoctor
+- Seeded 40 treatment prices with Indian dental market rates
+- Seeded 10 CRM doctors matching website doctor list
+- Created front office user: frontoffice / frontoffice123
+- Built crm-db.ts helper (libsql direct connection)
+- Built 8 API routes: dashboard, patients, patient/[id], appointments, visits, payments, doctors, treatments
+- Built CRM layout with sidebar navigation
+- Built CRM Dashboard with stats, today appointments, recent patients, 7-day revenue chart
+- Built Patient List with registration form (comprehensive 5-section form)
+- Built Patient Profile with 4 tabs (Overview, Visits, Appointments, Payments)
+- Built Appointment Management with booking, status cycling, filters
+- Built Billing & Invoices with line items, invoice generation, payment recording, printable invoices
+- Built Treatment Price List management
+- Built Doctor Management with schedule configuration
+- Added CRM links to admin dashboard (sidebar + prominent card)
+- Updated login page with front office credentials
+
+Stage Summary:
+- Complete CRM with 6 pages, 8 API routes, 12 database tables total
+- Two user roles: admin (full access), frontoffice (patients, appointments, billing)
+- All data stored on Turso cloud database
+- Login: admin/admin123 or frontoffice/frontoffice123

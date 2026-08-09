@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  LayoutDashboard, FileText, Bot, LogOut, Search, Plus, Trash2, Edit3, Play, Settings, Loader2, FileBarChart, Clock, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight, ExternalLink, BarChart3, Calendar, ArrowUpRight, Share2, Globe, Send, Eye, Key, AlertCircle
+  LayoutDashboard, FileText, Bot, LogOut, Search, Plus, Trash2, Edit3, Play, Settings, Loader2, FileBarChart, Clock, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight, ExternalLink, BarChart3, Calendar, ArrowUpRight, Share2, Globe, Send, Eye, Key, AlertCircle, Users
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -411,6 +411,9 @@ export default function AdminPage() {
           <a href="/" className="flex items-center gap-1 text-xs text-teal-400 hover:text-teal-200">
             <ExternalLink className="h-3 w-3" /> View Website
           </a>
+          <a href="/rajeshark/crm" className="flex items-center gap-1 text-xs text-teal-400 hover:text-teal-200 mt-2">
+            <Users className="h-3 w-3" /> Open CRM
+          </a>
         </div>
       </aside>
 
@@ -436,6 +439,9 @@ export default function AdminPage() {
             <button onClick={logout} className="mt-6 text-sm text-teal-300 flex items-center gap-2">
               <LogOut className="h-4 w-4" /> Logout
             </button>
+            <a href="/rajeshark/crm" className="mt-3 block text-sm text-teal-300 flex items-center gap-2">
+              <Users className="h-4 w-4" /> Open CRM
+            </a>
           </aside>
         </div>
       )}
@@ -478,6 +484,32 @@ export default function AdminPage() {
                 <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Drafts</p><p className="text-3xl font-bold text-amber-600 mt-1">{stats.draftPosts}</p></div><FileText className="h-10 w-10 text-amber-100" /></div></CardContent></Card>
                 <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">This Week</p><p className="text-3xl font-bold text-blue-600 mt-1">{stats.recentWeekPosts}</p></div><ArrowUpRight className="h-10 w-10 text-blue-100" /></div></CardContent></Card>
               </div>
+
+              </div>
+
+              {/* CRM Quick Access */}
+              <Card className="border-2 border-teal-200 bg-gradient-to-r from-teal-50 to-emerald-50">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-teal-900">Dental Clinic CRM</h3>
+                      <p className="text-sm text-teal-600 mt-1">Patient management, appointments, billing & more</p>
+                    </div>
+                    <a href="/rajeshark/crm">
+                      <Button className="bg-teal-600 hover:bg-teal-700 text-white">
+                        <Users className="h-4 w-4 mr-2" /> Open CRM
+                      </Button>
+                    </a>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Patient Registration</span>
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Appointments</span>
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Billing & Invoices</span>
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Clinical Records</span>
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Treatment Prices</span>
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="grid lg:grid-cols-2 gap-6">
                 <Card>

@@ -1,0 +1,1007 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from "react";
+     4→import {
+     5→  Calendar,
+     6→  Plus,
+     7→  Loader2,
+     8→  RefreshCw,
+     9→  Clock,
+    10→  Filter,
+    11→  Search,
+    12→  AlertCircle,
+    13→  ChevronLeft,
+    14→  ChevronRight,
+    15→  X,
+    16→  CheckCircle2,
+    17→  User,
+    18→  Stethoscope,
+    19→} from "lucide-react";
+    20→import { Button } from "@/components/ui/button";
+    21→import { Input } from "@/components/ui/input";
+    22→import { Label } from "@/components/ui/label";
+    23→import { Badge } from "@/components/ui/badge";
+    24→import { Skeleton } from "@/components/ui/skeleton";
+    25→import { Textarea } from "@/components/ui/textarea";
+    26→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+    27→import {
+    28→  Dialog,
+    29→  DialogContent,
+    30→  DialogHeader,
+    31→  DialogTitle,
+    32→  DialogDescription,
+    33→  DialogFooter,
+    34→} from "@/components/ui/dialog";
+    35→import {
+    36→  Select,
+    37→  SelectContent,
+    38→  SelectItem,
+    39→  SelectTrigger,
+    40→  SelectValue,
+    41→} from "@/components/ui/select";
+    42→import {
+    43→  Table,
+    44→  TableBody,
+    45→  TableCell,
+    46→  TableHead,
+    47→  TableHeader,
+    48→  TableRow,
+    49→} from "@/components/ui/table";
+    50→
+    51→// ============================================================
+    52→// Types
+    53→// ============================================================
+    54→
+    55→interface Appointment {
+    56→  id: string;
+    57→  appointmentId: string;
+    58→  patientId: string;
+    59→  patientName: string;
+    60→  doctorId: string | null;
+    61→  doctorName: string | null;
+    62→  date: string;
+    63→  time: string;
+    64→  endTime: string | null;
+    65→  duration: number;
+    66→  status: string;
+    67→  treatmentType: string | null;
+    68→  reason: string | null;
+    69→  notes: string | null;
+    70→  createdAt: string;
+    71→  updatedAt: string;
+    72→}
+    73→
+    74→interface Doctor {
+    75→  id: string;
+    76→  name: string;
+    77→  specialization: string | null;
+    78→  phone: string | null;
+    79→  active: number;
+    80→}
+    81→
+    82→interface Treatment {
+    83→  id: string;
+    84→  name: string;
+    85→  category: string | null;
+    86→  price: number;
+    87→  duration: number;
+    88→}
+    89→
+    90→interface PatientResult {
+    91→  id: string;
+    92→  patientId: string;
+    93→  firstName: string;
+    94→  lastName: string | null;
+    95→  phone: string;
+    96→}
+    97→
+    98→interface PaginationInfo {
+    99→  page: number;
+   100→  limit: number;
+   101→  total: number;
+   102→  totalPages: number;
+   103→}
+   104→
+   105→// ============================================================
+   106→// Helpers
+   107→// ============================================================
+   108→
+   109→function getToday(): string {
+   110→  return new Date().toISOString().split("T")[0];
+   111→}
+   112→
+   113→function formatDate(dateStr: string): string {
+   114→  if (!dateStr) return "";
+   115→  const d = new Date(dateStr + "T00:00:00");
+   116→  return d.toLocaleDateString("en-IN", {
+   117→    weekday: "short",
+   118→    day: "numeric",
+   119→    month: "short",
+   120→    year: "numeric",
+   121→  });
+   122→}
+   123→
+   124→function formatTime(timeStr: string): string {
+   125→  if (!timeStr) return "";
+   126→  const [h, m] = timeStr.split(":");
+   127→  const hour = parseInt(h, 10);
+   128→  const ampm = hour >= 12 ? "PM" : "AM";
+   129→  const h12 = hour % 12 || 12;
+   130→  return `${h12}:${m} ${ampm}`;
+   131→}
+   132→
+   133→const STATUS_CYCLE: Record<string, string[]> = {
+   134→  scheduled: ["confirmed", "cancelled"],
+   135→  confirmed: ["completed", "no-show", "cancelled"],
+   136→  completed: ["scheduled"],
+   137→  cancelled: ["scheduled"],
+   138→  "no-show": ["scheduled"],
+   139→};
+   140→
+   141→function getStatusBadge(status: string) {
+   142→  const map: Record<string, string> = {
+   143→    scheduled: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200",
+   144→    confirmed: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200",
+   145→    completed: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200",
+   146→    cancelled: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
+   147→    "no-show": "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200",
+   148→  };
+   149→  const cls = map[status] ?? "bg-gray-100 text-gray-600 border-gray-300";
+   150→  return (
+   151→    <Badge variant="outline" className={`${cls} cursor-pointer select-none transition-colors`}>
+   152→      {status.charAt(0).toUpperCase() + status.slice(1)}
+   153→    </Badge>
+   154→  );
+   155→}
+   156→
+   157→function getStatusNext(status: string): string {
+   158→  return STATUS_CYCLE[status]?.[0] ?? "scheduled";
+   159→}
+   160→
+   161→// Group appointments by date
+   162→function groupByDate(appointments: Appointment[]): Record<string, Appointment[]> {
+   163→  const groups: Record<string, Appointment[]> = {};
+   164→  for (const apt of appointments) {
+   165→    if (!groups[apt.date]) groups[apt.date] = [];
+   166→    groups[apt.date].push(apt);
+   167→  }
+   168→  return groups;
+   169→}
+   170→
+   171→// ============================================================
+   172→// Main Component
+   173→// ============================================================
+   174→
+   175→export default function AppointmentManagementPage() {
+   176→  // Data state
+   177→  const [appointments, setAppointments] = useState<Appointment[]>([]);
+   178→  const [pagination, setPagination] = useState<PaginationInfo>({
+   179→    page: 1,
+   180→    limit: 50,
+   181→    total: 0,
+   182→    totalPages: 0,
+   183→  });
+   184→  const [doctors, setDoctors] = useState<Doctor[]>([]);
+   185→  const [treatments, setTreatments] = useState<Treatment[]>([]);
+   186→  const [loading, setLoading] = useState(true);
+   187→  const [error, setError] = useState<string | null>(null);
+   188→
+   189→  // Filter state
+   190→  const [dateFilter, setDateFilter] = useState(getToday());
+   191→  const [doctorFilter, setDoctorFilter] = useState("");
+   192→  const [statusFilter, setStatusFilter] = useState("");
+   193→
+   194→  // Dialog state
+   195→  const [dialogOpen, setDialogOpen] = useState(false);
+   196→  const [submitting, setSubmitting] = useState(false);
+   197→  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+   198→
+   199→  // Patient search state
+   200→  const [patientSearch, setPatientSearch] = useState("");
+   201→  const [patientResults, setPatientResults] = useState<PatientResult[]>([]);
+   202→  const [patientSearching, setPatientSearching] = useState(false);
+   203→  const [selectedPatient, setSelectedPatient] = useState<PatientResult | null>(
+   204→    null
+   205→  );
+   206→  const patientSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   207→  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+   208→  const dropdownRef = useRef<HTMLDivElement>(null);
+   209→
+   210→  // Form state
+   211→  const [form, setForm] = useState({
+   212→    date: getToday(),
+   213→    time: "10:00",
+   214→    duration: "30",
+   215→    doctorId: "",
+   216→    treatmentType: "",
+   217→    reason: "",
+   218→    notes: "",
+   219→  });
+   220→
+   221→  // ============================================================
+   222→  // Auth helper
+   223→  // ============================================================
+   224→  const getHeaders = useCallback(() => {
+   225→    const token =
+   226→      typeof window !== "undefined"
+   227→        ? localStorage.getItem("admin_token")
+   228→        : null;
+   229→    return {
+   230→      Authorization: `Bearer ${token}`,
+   231→      "Content-Type": "application/json",
+   232→    };
+   233→  }, []);
+   234→
+   235→  // ============================================================
+   236→  // Fetch appointments
+   237→  // ============================================================
+   238→  const fetchAppointments = useCallback(
+   239→    async (page = 1) => {
+   240→      setLoading(true);
+   241→      setError(null);
+   242→      try {
+   243→        const token =
+   244→          typeof window !== "undefined"
+   245→            ? localStorage.getItem("admin_token")
+   246→            : null;
+   247→        if (!token) {
+   248→          setError("Authentication required. Please log in.");
+   249→          setLoading(false);
+   250→          return;
+   251→        }
+   252→
+   253→        const params = new URLSearchParams();
+   254→        if (dateFilter) params.set("date", dateFilter);
+   255→        if (doctorFilter) params.set("doctorId", doctorFilter);
+   256→        if (statusFilter) params.set("status", statusFilter);
+   257→        params.set("page", String(page));
+   258→        params.set("limit", "50");
+   259→
+   260→        const res = await fetch(`/api/crm/appointments?${params.toString()}`, {
+   261→          headers: {
+   262→            Authorization: `Bearer ${token}`,
+   263→            "Content-Type": "application/json",
+   264→          },
+   265→        });
+   266→
+   267→        if (res.status === 401) {
+   268→          setError("Session expired. Please log in again.");
+   269→          setLoading(false);
+   270→          return;
+   271→        }
+   272→        if (!res.ok)
+   273→          throw new Error(
+   274→            `Failed to load appointments (HTTP ${res.status})`
+   275→          );
+   276→
+   277→        const json = await res.json();
+   278→        setAppointments(json.appointments ?? []);
+   279→        setPagination(
+   280→          json.pagination ?? {
+   281→            page: 1,
+   282→            limit: 50,
+   283→            total: 0,
+   284→            totalPages: 0,
+   285→          }
+   286→        );
+   287→      } catch (err) {
+   288→        console.error("Fetch appointments error:", err);
+   289→        setError(
+   290→          err instanceof Error ? err.message : "Failed to load appointments."
+   291→        );
+   292→      } finally {
+   293→        setLoading(false);
+   294→      }
+   295→    },
+   296→    [dateFilter, doctorFilter, statusFilter]
+   297→  );
+   298→
+   299→  // ============================================================
+   300→  // Fetch doctors & treatments
+   301→  // ============================================================
+   302→  const fetchDoctors = useCallback(async () => {
+   303→    try {
+   304→      const res = await fetch("/api/crm/doctors", {
+   305→        headers: getHeaders(),
+   306→      });
+   307→      if (res.ok) {
+   308→        const json = await res.json();
+   309→        setDoctors(json.doctors ?? []);
+   310→      }
+   311→    } catch (err) {
+   312→      console.error("Fetch doctors error:", err);
+   313→    }
+   314→  }, [getHeaders]);
+   315→
+   316→  const fetchTreatments = useCallback(async () => {
+   317→    try {
+   318→      const res = await fetch("/api/crm/treatments", {
+   319→        headers: getHeaders(),
+   320→      });
+   321→      if (res.ok) {
+   322→        const json = await res.json();
+   323→        setTreatments(json.treatments ?? []);
+   324→      }
+   325→    } catch (err) {
+   326→      console.error("Fetch treatments error:", err);
+   327→    }
+   328→  }, [getHeaders]);
+   329→
+   330→  // ============================================================
+   331→  // Effects
+   332→  // ============================================================
+   333→  useEffect(() => {
+   334→    fetchDoctors();
+   335→    fetchTreatments();
+   336→  }, [fetchDoctors, fetchTreatments]);
+   337→
+   338→  useEffect(() => {
+   339→    fetchAppointments(1);
+   340→  }, [fetchAppointments]);
+   341→
+   342→  // Close patient dropdown on outside click
+   343→  useEffect(() => {
+   344→    function handleClick(e: MouseEvent) {
+   345→      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+   346→        setShowPatientDropdown(false);
+   347→      }
+   348→    }
+   349→    document.addEventListener("mousedown", handleClick);
+   350→    return () => document.removeEventListener("mousedown", handleClick);
+   351→  }, []);
+   352→
+   353→  // ============================================================
+   354→  // Patient search
+   355→  // ============================================================
+   356→  const handlePatientSearch = (value: string) => {
+   357→    setPatientSearch(value);
+   358→    setSelectedPatient(null);
+   359→    if (patientSearchRef.current) clearTimeout(patientSearchRef.current);
+   360→
+   361→    if (value.length < 3) {
+   362→      setPatientResults([]);
+   363→      setShowPatientDropdown(false);
+   364→      return;
+   365→    }
+   366→
+   367→    setPatientSearching(true);
+   368→    patientSearchRef.current = setTimeout(async () => {
+   369→      try {
+   370→        const res = await fetch(`/api/crm/patients?search=${encodeURIComponent(value)}&limit=10`, {
+   371→          headers: getHeaders(),
+   372→        });
+   373→        if (res.ok) {
+   374→          const json = await res.json();
+   375→          setPatientResults(json.patients ?? []);
+   376→          setShowPatientDropdown(true);
+   377→        }
+   378→      } catch (err) {
+   379→        console.error("Patient search error:", err);
+   380→      } finally {
+   381→        setPatientSearching(false);
+   382→      }
+   383→    }, 350);
+   384→  };
+   385→
+   386→  const selectPatient = (patient: PatientResult) => {
+   387→    setSelectedPatient(patient);
+   388→    setPatientSearch(
+   389→      `${patient.firstName}${patient.lastName ? " " + patient.lastName : ""} (${patient.patientId})`
+   390→    );
+   391→    setShowPatientDropdown(false);
+   392→  };
+   393→
+   394→  // ============================================================
+   395→  // Status update
+   396→  // ============================================================
+   397→  const handleStatusClick = async (appointment: Appointment) => {
+   398→    const nextStatus = getStatusNext(appointment.status);
+   399→    try {
+   400→      const res = await fetch("/api/crm/appointments", {
+   401→        method: "PUT",
+   402→        headers: getHeaders(),
+   403→        body: JSON.stringify({ id: appointment.id, status: nextStatus }),
+   404→      });
+   405→      if (res.ok) {
+   406→        setAppointments((prev) =>
+   407→          prev.map((a) =>
+   408→            a.id === appointment.id ? { ...a, status: nextStatus } : a
+   409→          )
+   410→        );
+   411→      }
+   412→    } catch (err) {
+   413→      console.error("Update status error:", err);
+   414→    }
+   415→  };
+   416→
+   417→  // ============================================================
+   418→  // Form submit
+   419→  // ============================================================
+   420→  const handleSubmit = async () => {
+   421→    const errors: Record<string, string> = {};
+   422→    if (!selectedPatient) errors.patient = "Please select a patient";
+   423→    if (!form.date) errors.date = "Date is required";
+   424→    if (!form.time) errors.time = "Time is required";
+   425→    setFormErrors(errors);
+   426→    if (Object.keys(errors).length > 0) return;
+   427→
+   428→    setSubmitting(true);
+   429→    try {
+   430→      const res = await fetch("/api/crm/appointments", {
+   431→        method: "POST",
+   432→        headers: getHeaders(),
+   433→        body: JSON.stringify({
+   434→          patientId: selectedPatient!.id,
+   435→          date: form.date,
+   436→          time: form.time,
+   437→          duration: parseInt(form.duration, 10),
+   438→          doctorId: form.doctorId || null,
+   439→          treatmentType: form.treatmentType || null,
+   440→          reason: form.reason || null,
+   441→          notes: form.notes || null,
+   442→        }),
+   443→      });
+   444→      if (!res.ok) {
+   445→        const err = await res.json().catch(() => ({}));
+   446→        throw new Error(err.error || `Failed to book appointment`);
+   447→      }
+   448→      // Success
+   449→      setDialogOpen(false);
+   450→      resetForm();
+   451→      fetchAppointments(1);
+   452→    } catch (err) {
+   453→      console.error("Book appointment error:", err);
+   454→      setFormErrors({
+   455→        submit: err instanceof Error ? err.message : "Failed to book appointment",
+   456→      });
+   457→    } finally {
+   458→      setSubmitting(false);
+   459→    }
+   460→  };
+   461→
+   462→  const resetForm = () => {
+   463→    setForm({
+   464→      date: getToday(),
+   465→      time: "10:00",
+   466→      duration: "30",
+   467→      doctorId: "",
+   468→      treatmentType: "",
+   469→      reason: "",
+   470→      notes: "",
+   471→    });
+   472→    setPatientSearch("");
+   473→    setSelectedPatient(null);
+   474→    setPatientResults([]);
+   475→    setFormErrors({});
+   476→  };
+   477→
+   478→  // ============================================================
+   479→  // Filter change handlers
+   480→  // ============================================================
+   481→  const handleDateChange = (value: string) => {
+   482→    setDateFilter(value);
+   483→  };
+   484→
+   485→  const handleDoctorFilterChange = (value: string) => {
+   486→    setDoctorFilter(value === "all" ? "" : value);
+   487→  };
+   488→
+   489→  const handleStatusFilterChange = (value: string) => {
+   490→    setStatusFilter(value === "all" ? "" : value);
+   491→  };
+   492→
+   493→  // ============================================================
+   494→  // Render
+   495→  // ============================================================
+   496→  const grouped = groupByDate(appointments);
+   497→  const dateKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+   498→
+   499→  return (
+   500→    <div className="space-y-6">
+   501→      {/* Page Header */
+   502→      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+   503→        <div className="flex items-center gap-3">
+   504→          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100">
+   505→            <Calendar className="h-5 w-5 text-teal-700" />
+   506→          </div>
+   507→          <div>
+   508→            <h1 className="text-2xl font-bold text-gray-900">
+   509→              Appointment Management
+   510→            </h1>
+   511→            <p className="text-sm text-gray-500">
+   512→              Manage and track patient appointments
+   513→            </p>
+   514→          </div>
+   515→        </div>
+   516→        <Button
+   517→          onClick={() => {
+   518→            resetForm();
+   519→            setDialogOpen(true);
+   520→          }}
+   521→          className="bg-teal-600 hover:bg-teal-700 text-white"
+   522→        >
+   523→          <Plus className="mr-2 h-4 w-4" />
+   524→          New Appointment
+   525→        </Button>
+   526→      </div>
+   527→
+   528→      {/* Filters */
+   529→      <Card>
+   530→        <CardContent className="p-4">
+   531→          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+   532→            <div className="flex-1">
+   533→              <Label className="mb-1.5 block text-xs font-medium text-gray-500">
+   534→                Date
+   535→              </Label>
+   536→              <Input
+   537→                type="date"
+   538→                value={dateFilter}
+   539→                onChange={(e) => handleDateChange(e.target.value)}
+   540→                className="max-w-[180px]"
+   541→              />
+   542→            </div>
+   543→            <div className="flex-1">
+   544→              <Label className="mb-1.5 block text-xs font-medium text-gray-500">
+   545→                Doctor
+   546→              </Label>
+   547→              <Select value={doctorFilter || "all"} onValueChange={handleDoctorFilterChange}>
+   548→                <SelectTrigger className="w-full sm:max-w-[200px]">
+   549→                  <SelectValue placeholder="All Doctors" />
+   550→                </SelectTrigger>
+   551→                <SelectContent>
+   552→                  <SelectItem value="all">All Doctors</SelectItem>
+   553→                  {doctors.map((d) => (
+   554→                    <SelectItem key={d.id} value={d.id}>
+   555→                      {d.name}
+   556→                    </SelectItem>
+   557→                  ))}
+   558→                </SelectContent>
+   559→              </Select>
+   560→            </div>
+   561→            <div className="flex-1">
+   562→              <Label className="mb-1.5 block text-xs font-medium text-gray-500">
+   563→                Status
+   564→              </Label>
+   565→              <Select value={statusFilter || "all"} onValueChange={handleStatusFilterChange}>
+   566→                <SelectTrigger className="w-full sm:max-w-[180px]">
+   567→                  <SelectValue placeholder="All Status" />
+   568→                </SelectTrigger>
+   569→                <SelectContent>
+   570→                  <SelectItem value="all">All Status</SelectItem>
+   571→                  <SelectItem value="scheduled">Scheduled</SelectItem>
+   572→                  <SelectItem value="confirmed">Confirmed</SelectItem>
+   573→                  <SelectItem value="completed">Completed</SelectItem>
+   574→                  <SelectItem value="cancelled">Cancelled</SelectItem>
+   575→                  <SelectItem value="no-show">No Show</SelectItem>
+   576→                </SelectContent>
+   577→              </Select>
+   578→            </div>
+   579→            <Button
+   580→              variant="outline"
+   581→              size="icon"
+   582→              onClick={() => fetchAppointments(1)}
+   583→              className="shrink-0"
+   584→              title="Refresh"
+   585→            >
+   586→              <RefreshCw className="h-4 w-4" />
+   587→            </Button>
+   588→          </div>
+   589→        </CardContent>
+   590→      </Card>
+   591→
+   592→      {/* Error State */
+   593→      {error && (
+   594→        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+   595→          <AlertCircle className="h-5 w-5 shrink-0 text-red-500" />
+   596→          <p className="text-sm text-red-700">{error}</p>
+   597→        </div>
+   598→      )}
+   599→
+   600→      {/* Loading Skeleton */
+   601→      {loading && (
+   602→        <div className="space-y-4">
+   603→          {Array.from({ length: 3 }).map((_, i) => (
+   604→            <div key={i} className="space-y-3">
+   605→              <Skeleton className="h-6 w-48" />
+   606→              {Array.from({ length: 2 }).map((_, j) => (
+   607→                <Skeleton key={j} className="h-14 w-full" />
+   608→              ))}
+   609→            </div>
+   610→          ))}
+   611→        </div>
+   612→      )}
+   613→
+   614→      {/* Appointments Table - Grouped by Date */
+   615→      {!loading && !error && dateKeys.length === 0 && (
+   616→        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 py-16">
+   617→          <Calendar className="mb-4 h-12 w-12 text-gray-300" />
+   618→          <h3 className="text-lg font-medium text-gray-600">No Appointments</h3>
+   619→          <p className="mt-1 text-sm text-gray-400">
+   620→            No appointments found for the selected filters.
+   621→          </p>
+   622→        </div>
+   623→      )}
+   624→
+   625→      {!loading &&
+   626→        !error &&
+   627→        dateKeys.map((date) => (
+   628→          <div key={date} className="space-y-2">
+   629→            {/* Date Header */
+   630→            <div className="flex items-center gap-3">
+   631→              <div className="h-px flex-1 bg-gray-200" />
+   632→              <div className="flex items-center gap-2 rounded-full bg-teal-50 px-4 py-1.5">
+   633→                <Calendar className="h-3.5 w-3.5 text-teal-600" />
+   634→                <span className="text-sm font-semibold text-teal-700">
+   635→                  {formatDate(date)}
+   636→                </span>
+   637→                <Badge
+   638→                  variant="secondary"
+   639→                  className="bg-teal-100 text-teal-600"
+   640→                >
+   641→                  {grouped[date].length}
+   642→                </Badge>
+   643→              </div>
+   644→              <div className="h-px flex-1 bg-gray-200" />
+   645→            </div>
+   646→
+   647→            {/* Appointments for this date */
+   648→            <Card>
+   649→              <CardContent className="p-0">
+   650→                <div className="overflow-x-auto">
+   651→                  <Table>
+   652→                    <TableHeader>
+   653→                      <TableRow className="bg-gray-50/50">
+   654→                        <TableHead className="w-[100px]">Time</TableHead>
+   655→                        <TableHead>Patient</TableHead>
+   656→                        <TableHead className="hidden md:table-cell">Doctor</TableHead>
+   657→                        <TableHead className="hidden lg:table-cell">Treatment</TableHead>
+   658→                        <TableHead className="w-[130px]">Status</TableHead>
+   659→                      </TableRow>
+   660→                    </TableHeader>
+   661→                    <TableBody>
+   662→                      {grouped[date]
+   663→                        .sort((a, b) => a.time.localeCompare(b.time))
+   664→                        .map((apt) => (
+   665→                          <TableRow
+   666→                            key={apt.id}
+   667→                            className="transition-colors hover:bg-gray-50"
+   668→                          >
+   669→                            <TableCell>
+   670→                              <div className="flex items-center gap-1.5">
+   671→                                <Clock className="h-3.5 w-3.5 text-gray-400" />
+   672→                                <span className="font-medium text-gray-900">
+   673→                                  {formatTime(apt.time)}
+   674→                                </span>
+   675→                              </div>
+   676→                              <span className="text-xs text-gray-400">
+   677→                                {apt.duration} min
+   678→                              </span>
+   679→                            </TableCell>
+   680→                            <TableCell>
+   681→                              <div className="flex items-center gap-2">
+   682→                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
+   683→                                  {apt.patientName?.charAt(0).toUpperCase()}
+   684→                                </div>
+   685→                                <div>
+   686→                                  <p className="font-medium text-gray-900">
+   687→                                    {apt.patientName}
+   688→                                  </p>
+   689→                                  {apt.reason && (
+   690→                                    <p className="text-xs text-gray-400 truncate max-w-[200px]">
+   691→                                      {apt.reason}
+   692→                                    </p>
+   693→                                  )}
+   694→                                </div>
+   695→                              </div>
+   696→                            </TableCell>
+   697→                            <TableCell className="hidden md:table-cell">
+   698→                              <div className="flex items-center gap-1.5">
+   699→                                <Stethoscope className="h-3.5 w-3.5 text-gray-400" />
+   700→                                <span className="text-gray-700">
+   701→                                  {apt.doctorName || "Not assigned"}
+   702→                                </span>
+   703→                              </div>
+   704→                            </TableCell>
+   705→                            <TableCell className="hidden lg:table-cell">
+   706→                              <span className="text-gray-600">
+   707→                                {apt.treatmentType || "—"}
+   708→                              </span>
+   709→                            </TableCell>
+   710→                            <TableCell>
+   711→                              <button
+   712→                                onClick={() => handleStatusClick(apt)}
+   713→                                title={`Click to change status (next: ${getStatusNext(apt.status)})`}
+   714→                              >
+   715→                                {getStatusBadge(apt.status)}
+   716→                              </button>
+   717→                            </TableCell>
+   718→                          </TableRow>
+   719→                        ))}
+   720→                    </TableBody>
+   721→                  </Table>
+   722→                </div>
+   723→              </CardContent>
+   724→            </Card>
+   725→          </div>
+   726→        ))}
+   727→
+   728→      {/* Pagination */
+   729→      {pagination.totalPages > 1 && (
+   730→        <div className="flex items-center justify-between">
+   731→          <p className="text-sm text-gray-500">
+   732→            Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+   733→          </p>
+   734→          <div className="flex items-center gap-2">
+   735→            <Button
+   736→              variant="outline"
+   737→              size="sm"
+   738→              disabled={pagination.page <= 1}
+   739→              onClick={() => fetchAppointments(pagination.page - 1)}
+   740→            >
+   741→              <ChevronLeft className="h-4 w-4 mr-1" />
+   742→              Prev
+   743→            </Button>
+   744→            <Button
+   745→              variant="outline"
+   746→              size="sm"
+   747→              disabled={pagination.page >= pagination.totalPages}
+   748→              onClick={() => fetchAppointments(pagination.page + 1)}
+   749→            >
+   750→              Next
+   751→              <ChevronRight className="h-4 w-4 ml-1" />
+   752→            </Button>
+   753→          </div>
+   754→        </div>
+   755→      )}
+   756→
+   757→      {/* ============================================================ */
+   758→      {/* New Appointment Dialog */}
+   759→      {/* ============================================================ */
+   760→      <Dialog open={dialogOpen} onOpenChange={(open) => {
+   761→        setDialogOpen(open);
+   762→        if (!open) resetForm();
+   763→      }}>
+   764→        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+   765→          <DialogHeader>
+   766→            <DialogTitle className="flex items-center gap-2">
+   767→              <Plus className="h-5 w-5 text-teal-600" />
+   768→              New Appointment
+   769→            </DialogTitle>
+   770→            <DialogDescription>
+   771→              Book a new appointment for a patient.
+   772→            </DialogDescription>
+   773→          </DialogHeader>
+   774→
+   775→          <div className="space-y-4 py-2">
+   776→            {/* Patient Search */}
+   777→            <div className="space-y-1.5">
+   778→              <Label className="text-sm font-medium">
+   779→                Patient <span className="text-red-500">*</span>
+   780→              </Label>
+   781→              <div className="relative" ref={dropdownRef}>
+   782→                <div className="relative">
+   783→                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+   784→                  <Input
+   785→                    placeholder="Type 3+ characters to search patients..."
+   786→                    value={patientSearch}
+   787→                    onChange={(e) => handlePatientSearch(e.target.value)}
+   788→                    className="pl-9"
+   789→                  />
+   790→                  {patientSearching && (
+   791→                    <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
+   792→                  )}
+   793→                  {selectedPatient && (
+   794→                    <button
+   795→                      onClick={() => {
+   796→                        setSelectedPatient(null);
+   797→                        setPatientSearch("");
+   798→                      }}
+   799→                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+   800→                    >
+   801→                      <X className="h-4 w-4" />
+   802→                    </button>
+   803→                  )}
+   804→                </div>
+   805→                {/* Patient Dropdown */}
+   806→                {showPatientDropdown && patientResults.length > 0 && (
+   807→                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-y-auto">
+   808→                    {patientResults.map((p) => (
+   809→                      <button
+   810→                        key={p.id}
+   811→                        onClick={() => selectPatient(p)}
+   812→                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-teal-50"
+   813→                      >
+   814→                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
+   815→                          {p.firstName.charAt(0).toUpperCase()}
+   816→                        </div>
+   817→                        <div>
+   818→                          <p className="text-sm font-medium text-gray-900">
+   819→                            {p.firstName}{p.lastName ? ` ${p.lastName}` : ""}
+   820→                          </p>
+   821→                          <p className="text-xs text-gray-500">
+   822→                            {p.patientId} • {p.phone}
+   823→                          </p>
+   824→                        </div>
+   825→                      </button>
+   826→                    ))}
+   827→                  </div>
+   828→                )}
+   829→                {showPatientDropdown && patientSearch.length >= 3 && !patientSearching && patientResults.length === 0 && (
+   830→                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white p-3 text-center text-sm text-gray-500 shadow-lg">
+   831→                    No patients found
+   832→                  </div>
+   833→                )}
+   834→              </div>
+   835→              {formErrors.patient && (
+   836→                <p className="text-xs text-red-500">{formErrors.patient}</p>
+   837→              )}
+   838→            </div>
+   839→
+   840→            {/* Doctor */}
+   841→            <div className="space-y-1.5">
+   842→              <Label className="text-sm font-medium">Doctor</Label>
+   843→              <Select
+   844→                value={form.doctorId}
+   845→                onValueChange={(val) =>
+   846→                  setForm((f) => ({ ...f, doctorId: val }))
+   847→                }
+   848→              >
+   849→                <SelectTrigger>
+   850→                  <SelectValue placeholder="Select doctor" />
+   851→                </SelectTrigger>
+   852→                <SelectContent>
+   853→                  {doctors.map((d) => (
+   854→                    <SelectItem key={d.id} value={d.id}>
+   855→                      {d.name}
+   856→                      {d.specialization ? ` (${d.specialization})` : ""}
+   857→                    </SelectItem>
+   858→                  ))}
+   859→                </SelectContent>
+   860→              </Select>
+   861→            </div>
+   862→
+   863→            {/* Date & Time */}
+   864→            <div className="grid grid-cols-2 gap-3">
+   865→              <div className="space-y-1.5">
+   866→                <Label className="text-sm font-medium">
+   867→                  Date <span className="text-red-500">*</span>
+   868→                </Label>
+   869→                <Input
+   870→                  type="date"
+   871→                  value={form.date}
+   872→                  onChange={(e) =>
+   873→                    setForm((f) => ({ ...f, date: e.target.value }))
+   874→                  }
+   875→                />
+   876→                {formErrors.date && (
+   877→                  <p className="text-xs text-red-500">{formErrors.date}</p>
+   878→                )}
+   879→              </div>
+   880→              <div className="space-y-1.5">
+   881→                <Label className="text-sm font-medium">
+   882→                  Time <span className="text-red-500">*</span>
+   883→                </Label>
+   884→                <Input
+   885→                  type="time"
+   886→                  value={form.time}
+   887→                  onChange={(e) =>
+   888→                    setForm((f) => ({ ...f, time: e.target.value }))
+   889→                  }
+   890→                />
+   891→                {formErrors.time && (
+   892→                  <p className="text-xs text-red-500">{formErrors.time}</p>
+   893→                )}
+   894→              </div>
+   895→            </div>
+   896→
+   897→            {/* Duration */}
+   898→            <div className="space-y-1.5">
+   899→              <Label className="text-sm font-medium">Duration</Label>
+   900→              <Select
+   901→                value={form.duration}
+   902→                onValueChange={(val) =>
+   903→                  setForm((f) => ({ ...f, duration: val }))
+   904→                }
+   905→              >
+   906→                <SelectTrigger>
+   907→                  <SelectValue />
+   908→                </SelectTrigger>
+   909→                <SelectContent>
+   910→                  <SelectItem value="15">15 minutes</SelectItem>
+   911→                  <SelectItem value="30">30 minutes</SelectItem>
+   912→                  <SelectItem value="45">45 minutes</SelectItem>
+   913→                  <SelectItem value="60">60 minutes</SelectItem>
+   914→                  <SelectItem value="90">90 minutes</SelectItem>
+   915→                </SelectContent>
+   916→              </Select>
+   917→            </div>
+   918→
+   919→            {/* Treatment Type */}
+   920→            <div className="space-y-1.5">
+   921→              <Label className="text-sm font-medium">Treatment Type</Label>
+   922→              <Select
+   923→                value={form.treatmentType}
+   924→                onValueChange={(val) =>
+   925→                  setForm((f) => ({ ...f, treatmentType: val }))
+   926→                }
+   927→              >
+   928→                <SelectTrigger>
+   929→                  <SelectValue placeholder="Select treatment" />
+   930→                </SelectTrigger>
+   931→                <SelectContent>
+   932→                  {treatments.map((t) => (
+   933→                    <SelectItem key={t.id} value={t.name}>
+   934→                      {t.name}
+   935→                    </SelectItem>
+   936→                  ))}
+   937→                </SelectContent>
+   938→              </Select>
+   939→            </div>
+   940→
+   941→            {/* Reason */}
+   942→            <div className="space-y-1.5">
+   943→              <Label className="text-sm font-medium">Reason</Label>
+   944→              <Textarea
+   945→                placeholder="Reason for visit..."
+   946→                value={form.reason}
+   947→                onChange={(e) =>
+   948→                  setForm((f) => ({ ...f, reason: e.target.value }))
+   949→                }
+   950→                rows={2}
+   951→              />
+   952→            </div>
+   953→
+   954→            {/* Notes */}
+   955→            <div className="space-y-1.5">
+   956→              <Label className="text-sm font-medium">Notes</Label>
+   957→              <Textarea
+   958→                placeholder="Additional notes..."
+   959→                value={form.notes}
+   960→                onChange={(e) =>
+   961→                  setForm((f) => ({ ...f, notes: e.target.value }))
+   962→                }
+   963→                rows={2}
+   964→              />
+   965→            </div>
+   966→
+   967→            {/* Submit Error */}
+   968→            {formErrors.submit && (
+   969→              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+   970→                <AlertCircle className="h-4 w-4 text-red-500" />
+   971→                <p className="text-sm text-red-700">{formErrors.submit}</p>
+   972→              </div>
+   973→            )}
+   974→          </div>
+   975→
+   976→          <DialogFooter>
+   977→            <Button
+   978→              variant="outline"
+   979→              onClick={() => setDialogOpen(false)}
+   980→              disabled={submitting}
+   981→            >
+   982→              Cancel
+   983→            </Button>
+   984→            <Button
+   985→              onClick={handleSubmit}
+   986→              disabled={submitting}
+   987→              className="bg-teal-600 hover:bg-teal-700 text-white"
+   988→            >
+   989→              {submitting ? (
+   990→                <>
+   991→                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   992→                  Booking...
+   993→                </>
+   994→              ) : (
+   995→                <>
+   996→                  <CheckCircle2 className="mr-2 h-4 w-4" />
+   997→                  Book Appointment
+   998→                </>
+   999→              )}
+  1000→            </Button>
+  1001→          </DialogFooter>
+  1002→        </DialogContent>
+  1003→      </Dialog>
+  1004→    </div>
+  1005→  );
+  1006→}
+  1007→

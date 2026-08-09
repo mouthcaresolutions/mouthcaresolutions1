@@ -1,0 +1,863 @@
+     1→'use client';
+     2→
+     3→import React, { use, useState, useEffect, useCallback } from 'react';
+     4→import Link from 'next/link';
+     5→import {
+     6→  ArrowLeft,
+     7→  Phone,
+     8→  Mail,
+     9→  Calendar,
+    10→  Activity,
+    11→  CreditCard,
+    12→  User,
+    13→  MapPin,
+    14→  Heart,
+    15→  FileText,
+    16→  RefreshCw,
+    17→  ChevronDown,
+    18→  ChevronUp,
+    19→  Clock,
+    20→  AlertCircle,
+    21→  IndianRupee,
+    22→  Stethoscope,
+    23→  ShieldCheck,
+    24→  Building2,
+    25→  Hash,
+    26→  UserPlus,
+    27→  CalendarPlus,
+    28→  Wallet,
+    29→  Ban,
+    30→  EyeOff,
+    31→} from 'lucide-react';
+    32→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    33→import {
+    34→  Card,
+    35→  CardContent,
+    36→  CardHeader,
+    37→  CardTitle,
+    38→} from '@/components/ui/card';
+    39→import { Button } from '@/components/ui/button';
+    40→import { Badge } from '@/components/ui/badge';
+    41→import {
+    42→  Table,
+    43→  TableBody,
+    44→  TableCell,
+    45→  TableHead,
+    46→  TableHeader,
+    47→  TableRow,
+    48→} from '@/components/ui/table';
+    49→import { Skeleton } from '@/components/ui/skeleton';
+    50→import { Separator } from '@/components/ui/separator';
+    51→import {
+    52→  Collapsible,
+    53→  CollapsibleContent,
+    54→  CollapsibleTrigger,
+    55→} from '@/components/ui/collapsible';
+    56→
+    57→// ── Types ──────────────────────────────────────────────────────────────────────
+    58→
+    59→interface Patient {
+    60→  id: string;
+    61→  patientId: string;
+    62→  firstName: string;
+    63→  lastName: string;
+    64→  phone: string;
+    65→  phone2: string;
+    66→  email: string;
+    67→  dateOfBirth: string;
+    68→  age: number;
+    69→  gender: string;
+    70→  bloodGroup: string;
+    71→  address: string;
+    72→  city: string;
+    73→  state: string;
+    74→  pincode: string;
+    75→  occupation: string;
+    76→  referredBy: string;
+    77→  medicalHistory: string;
+    78→  dentalHistory: string;
+    79→  allergies: string;
+    80→  currentMedications: string;
+    81→  emergencyContactName: string;
+    82→  emergencyContactPhone: string;
+    83→  insuranceProvider: string;
+    84→  insuranceNumber: string;
+    85→  category: string;
+    86→  notes: string;
+    87→  totalVisits: number;
+    88→  totalSpent: number;
+    89→  balanceDue: number;
+    90→  lastVisitDate: string;
+    91→  createdAt: string;
+    92→}
+    93→
+    94→interface Visit {
+    95→  id: string;
+    96→  visitId: string;
+    97→  patientId: string;
+    98→  patientName: string;
+    99→  doctorId: string;
+   100→  doctorName: string;
+   101→  appointmentId: string;
+   102→  date: string;
+   103→  chiefComplaint: string;
+   104→  diagnosis: string;
+   105→  treatmentDone: string;
+   106→  prescription: string;
+   107→  notes: string;
+   108→  followUpDate: string;
+   109→  totalAmount: number;
+   110→  discount: number;
+   111→  createdAt: string;
+   112→}
+   113→
+   114→interface Appointment {
+   115→  id: string;
+   116→  appointmentId: string;
+   117→  patientId: string;
+   118→  patientName: string;
+   119→  doctorId: string;
+   120→  doctorName: string;
+   121→  date: string;
+   122→  time: string;
+   123→  endTime: string;
+   124→  duration: number;
+   125→  status: string;
+   126→  treatmentType: string;
+   127→  reason: string;
+   128→  notes: string;
+   129→  createdAt: string;
+   130→}
+   131→
+   132→interface Payment {
+   133→  id: string;
+   134→  paymentId: string;
+   135→  patientId: string;
+   136→  patientName: string;
+   137→  visitId: string;
+   138→  invoiceNumber: string;
+   139→  amount: number;
+   140→  paidAmount: number;
+   141→  balanceAmount: number;
+   142→  paymentMethod: string;
+   143→  status: string;
+   144→  date: string;
+   145→  dueDate: string;
+   146→  items: string;
+   147→  notes: string;
+   148→  createdAt: string;
+   149→}
+   150→
+   151→interface PatientData {
+   152→  patient: Patient;
+   153→  visits: Visit[];
+   154→  appointments: Appointment[];
+   155→  payments: Payment[];
+   156→}
+   157→
+   158→// ── Helpers ────────────────────────────────────────────────────────────────────
+   159→
+   160→const inrFormat = (amount: number) =>
+   161→  `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
+   162→
+   163→const formatDate = (dateStr: string) => {
+   164→  if (!dateStr) return '—';
+   165→  return new Date(dateStr).toLocaleDateString('en-IN', {
+   166→    day: '2-digit',
+   167→    month: 'short',
+   168→    year: 'numeric',
+   169→  });
+   170→};
+   171→
+   172→const formatDateTime = (dateStr: string, timeStr?: string) => {
+   173→  if (!dateStr) return '—';
+   174→  const date = new Date(dateStr);
+   175→  const formattedDate = date.toLocaleDateString('en-IN', {
+   176→    day: '2-digit',
+   177→    month: 'short',
+   178→    year: 'numeric',
+   179→  });
+   180→  if (timeStr) {
+   181→    return `${formattedDate}, ${timeStr}`;
+   182→  }
+   183→  return formattedDate;
+   184→};
+   185→
+   186→const getStatusBadge = (status: string) => {
+   187→  const s = status?.toLowerCase();
+   188→  const map: Record<string, string> = {
+   189→    scheduled: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+   190→    confirmed: 'bg-green-100 text-green-800 hover:bg-green-100',
+   191→    completed: 'bg-teal-100 text-teal-800 hover:bg-teal-100',
+   192→    cancelled: 'bg-red-100 text-red-800 hover:bg-red-100',
+   193→    'no-show': 'bg-orange-100 text-orange-800 hover:bg-orange-100',
+   194→    paid: 'bg-green-100 text-green-800 hover:bg-green-100',
+   195→    partial: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
+   196→    pending: 'bg-red-100 text-red-800 hover:bg-red-100',
+   197→  };
+   198→  return map[s] || 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+   199→};
+   200→
+   201→// ── Component ──────────────────────────────────────────────────────────────────
+   202→
+   203→export default function PatientProfilePage(props: {
+   204→  params: Promise<{ id: string }>;
+   205→}) {
+   206→  const params = use(props.params);
+   207→  const id = params.id;
+   208→
+   209→  const [data, setData] = useState<PatientData | null>(null);
+   210→  const [loading, setLoading] = useState(true);
+   211→  const [error, setError] = useState<string | null>(null);
+   212→  const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
+   213→
+   214→  const fetchPatient = useCallback(async () => {
+   215→    setLoading(true);
+   216→    setError(null);
+   217→    try {
+   218→      const token = localStorage.getItem('admin_token');
+   219→      if (!token) throw new Error('Authentication required. Please log in.');
+   220→
+   221→      const res = await fetch(`/api/crm/patient/${id}`, {
+   222→        headers: { Authorization: `Bearer ${token}` },
+   223→      });
+   224→
+   225→      if (!res.ok) {
+   226→        const errBody = await res.json().catch(() => ({}));
+   227→        throw new Error(errBody.error || `Failed to fetch patient (HTTP ${res.status})`);
+   228→      }
+   229→
+   230→      const json = await res.json();
+   231→      setData(json);
+   232→    } catch (err) {
+   233→      setError(err instanceof Error ? err.message : 'Something went wrong');
+   234→    } finally {
+   235→      setLoading(false);
+   236→    }
+   237→  }, [id]);
+   238→
+   239→  useEffect(() => {
+   240→    fetchPatient();
+   241→  }, [fetchPatient]);
+   242→
+   243→  // ── Loading Skeleton ───────────────────────────────────────────────────────
+   244→
+   245→  if (loading) {
+   246→    return (
+   247→      <div className="min-h-screen bg-gray-50/50">
+   248→        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+   249→          {/* Back button skeleton */}
+   250→          <Skeleton className="mb-6 h-9 w-36" />
+   251→
+   252→          {/* Header skeleton */}
+   253→          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+   254→            <div className="space-y-3">
+   255→              <div className="flex items-center gap-3">
+   256→                <Skeleton className="h-10 w-64" />
+   257→                <Skeleton className="h-6 w-28 rounded-full" />
+   258→                <Skeleton className="h-6 w-20 rounded-full" />
+   259→              </div>
+   260→              <div className="flex flex-wrap items-center gap-4">
+   261→                <Skeleton className="h-4 w-32" />
+   262→                <Skeleton className="h-4 w-40" />
+   263→                <Skeleton className="h-4 w-32" />
+   264→              </div>
+   265→            </div>
+   266→            <div className="flex gap-2">
+   267→              <Skeleton className="h-10 w-36" />
+   268→              <Skeleton className="h-10 w-28" />
+   269→              <Skeleton className="h-10 w-32" />
+   270→            </div>
+   271→          </div>
+   272→
+   273→          {/* Stats skeleton */}
+   274→          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+   275→            {Array.from({ length: 4 }).map((_, i) => (
+   276→              <Skeleton key={i} className="h-24 rounded-xl" />
+   277→            ))}
+   278→          </div>
+   279→
+   280→          {/* Tabs skeleton */}
+   281→          <Skeleton className="mb-6 h-10 w-full max-w-md" />
+   282→          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+   283→            {Array.from({ length: 6 }).map((_, i) => (
+   284→              <Skeleton key={i} className="h-48 rounded-xl" />
+   285→            ))}
+   286→          </div>
+   287→        </div>
+   288→      </div>
+   289→    );
+   290→  }
+   291→
+   292→  // ── Error State ───────────────────────────────────────────────────────────
+   293→
+   294→  if (error || !data) {
+   295→    return (
+   296→      <div className="min-h-screen bg-gray-50/50">
+   297→        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+   298→          <Link href="/rajeshark/crm/patients">
+   299→            <Button variant="ghost" size="sm" className="mb-6 -ml-2 text-gray-600">
+   300→              <ArrowLeft className="mr-2 h-4 w-4" />
+   301→              Back to Patients
+   302→            </Button>
+   303→          </Link>
+   304→          <Card className="mx-auto max-w-lg border-red-200 bg-red-50/50">
+   305→            <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+   306→              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+   307→                <AlertCircle className="h-7 w-7 text-red-600" />
+   308→              </div>
+   309→              <div>
+   310→                <h2 className="text-lg font-semibold text-red-900">Failed to Load Patient</h2>
+   311→                <p className="mt-1 text-sm text-red-700">{error || 'No data received from the server.'}</p>
+   312→              </div>
+   313→              <Button onClick={fetchPatient} variant="outline" className="gap-2 border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800">
+   314→                <RefreshCw className="h-4 w-4" />
+   315→                Try Again
+   316→              </Button>
+   317→            </CardContent>
+   318→          </Card>
+   319→        </div>
+   320→      </div>
+   321→    );
+   322→  }
+   323→
+   324→  const { patient, visits, appointments, payments } = data;
+   325→  const fullName = `${patient.firstName} ${patient.lastName}`;
+   326→
+   327→  // ── Overview Info Items ───────────────────────────────────────────────────
+   328→
+   329→  const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) => (
+   330→    <div className="flex items-start gap-3 py-2">
+   331→      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+   332→      <div className="min-w-0">
+   333→        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+   334→        <p className="text-sm font-medium text-foreground break-words">{value || '—'}</p>
+   335→      </div>
+   336→    </div>
+   337→  );
+   338→
+   339→  // ── Render ────────────────────────────────────────────────────────────────
+   340→
+   341→  return (
+   342→    <div className="min-h-screen bg-gray-50/50">
+   343→      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+   344→        {/* ── Back Button ──────────────────────────────────────────────────── */}
+   345→        <Link href="/rajeshark/crm/patients">
+   346→          <Button variant="ghost" size="sm" className="mb-6 -ml-2 text-gray-600 hover:text-gray-900">
+   347→            <ArrowLeft className="mr-2 h-4 w-4" />
+   348→            Back to Patients
+   349→          </Button>
+   350→        </Link>
+   351→
+   352→        {/* ── Profile Header ───────────────────────────────────────────────── */}
+   353→        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+   354→          <div className="space-y-3">
+   355→            <div className="flex flex-wrap items-center gap-3">
+   356→              <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+   357→                {fullName}
+   358→              </h1>
+   359→              <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100 border-teal-200">
+   360→                <Hash className="mr-1 h-3 w-3" />
+   361→                {patient.patientId}
+   362→              </Badge>
+   363→              {patient.category && (
+   364→                <Badge variant="outline" className="border-emerald-200 text-emerald-700">
+   365→                  {patient.category}
+   366→                </Badge>
+   367→              )}
+   368→            </div>
+   369→            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-500">
+   370→              <span className="inline-flex items-center gap-1.5">
+   371→                <Phone className="h-3.5 w-3.5" />
+   372→                {patient.phone}
+   373→              </span>
+   374→              {patient.email && (
+   375→                <span className="inline-flex items-center gap-1.5">
+   376→                  <Mail className="h-3.5 w-3.5" />
+   377→                  {patient.email}
+   378→                </span>
+   379→              )}
+   380→              <span className="inline-flex items-center gap-1.5">
+   381→                <Calendar className="h-3.5 w-3.5" />
+   382→                Registered {formatDate(patient.createdAt)}
+   383→              </span>
+   384→            </div>
+   385→          </div>
+   386→
+   387→          {/* Quick Actions */}
+   388→          <div className="flex flex-wrap gap-2">
+   389→            <Button className="bg-teal-600 text-white hover:bg-teal-700 shadow-sm">
+   390→              <CalendarPlus className="mr-2 h-4 w-4" />
+   391→              New Appointment
+   392→            </Button>
+   393→            <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+   394→              <Activity className="mr-2 h-4 w-4" />
+   395→              New Visit
+   396→            </Button>
+   397→            <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+   398→              <Wallet className="mr-2 h-4 w-4" />
+   399→              New Payment
+   400→            </Button>
+   401→          </div>
+   402→        </div>
+   403→
+   404→        {/* ── Stats Cards ──────────────────────────────────────────────────── */}
+   405→        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+   406→          <Card className="border-0 bg-white shadow-sm hover:shadow-md transition-shadow">
+   407→            <CardContent className="flex items-center gap-4 p-4">
+   408→              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50">
+   409→                <Activity className="h-5 w-5 text-teal-600" />
+   410→              </div>
+   411→              <div>
+   412→                <p className="text-xs font-medium text-muted-foreground">Total Visits</p>
+   413→                <p className="text-xl font-bold text-gray-900">{patient.totalVisits ?? visits.length}</p>
+   414→              </div>
+   415→            </CardContent>
+   416→          </Card>
+   417→
+   418→          <Card className="border-0 bg-white shadow-sm hover:shadow-md transition-shadow">
+   419→            <CardContent className="flex items-center gap-4 p-4">
+   420→              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+   421→                <IndianRupee className="h-5 w-5 text-emerald-600" />
+   422→              </div>
+   423→              <div>
+   424→                <p className="text-xs font-medium text-muted-foreground">Total Spent</p>
+   425→                <p className="text-xl font-bold text-gray-900">{inrFormat(patient.totalSpent ?? 0)}</p>
+   426→              </div>
+   427→            </CardContent>
+   428→          </Card>
+   429→
+   430→          <Card className="border-0 bg-white shadow-sm hover:shadow-md transition-shadow">
+   431→            <CardContent className="flex items-center gap-4 p-4">
+   432→              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${patient.balanceDue > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
+   433→                <CreditCard className={`h-5 w-5 ${patient.balanceDue > 0 ? 'text-red-600' : 'text-gray-500'}`} />
+   434→              </div>
+   435→              <div>
+   436→                <p className="text-xs font-medium text-muted-foreground">Balance Due</p>
+   437→                <p className={`text-xl font-bold ${patient.balanceDue > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+   438→                  {inrFormat(patient.balanceDue ?? 0)}
+   439→                </p>
+   440→              </div>
+   441→            </CardContent>
+   442→          </Card>
+   443→
+   444→          <Card className="border-0 bg-white shadow-sm hover:shadow-md transition-shadow">
+   445→            <CardContent className="flex items-center gap-4 p-4">
+   446→              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+   447→                <Calendar className="h-5 w-5 text-amber-600" />
+   448→              </div>
+   449→              <div>
+   450→                <p className="text-xs font-medium text-muted-foreground">Last Visit</p>
+   451→                <p className="text-sm font-bold text-gray-900">
+   452→                  {patient.lastVisitDate ? formatDate(patient.lastVisitDate) : 'No visits yet'}
+   453→                </p>
+   454→              </div>
+   455→            </CardContent>
+   456→          </Card>
+   457→        </div>
+   458→
+   459→        {/* ── Tabs ─────────────────────────────────────────────────────────── */}
+   460→        <Tabs defaultValue="overview" className="space-y-6">
+   461→          <TabsList className="bg-white border shadow-sm rounded-lg h-11 p-1">
+   462→            <TabsTrigger
+   463→              value="overview"
+   464→              className="data-[state=active]:bg-teal-600 data-[state=active]:text-white rounded-md text-sm font-medium px-4"
+   465→            >
+   466→              Overview
+   467→            </TabsTrigger>
+   468→            <TabsTrigger
+   469→              value="visits"
+   470→              className="data-[state=active]:bg-teal-600 data-[state=active]:text-white rounded-md text-sm font-medium px-4"
+   471→            >
+   472→              Visits
+   473→              {visits.length > 0 && (
+   474→                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-100 px-1.5 text-[10px] font-semibold text-teal-700 data-[state=active]:bg-white/20 data-[state=active]:text-white">
+   475→                  {visits.length}
+   476→                </span>
+   477→              )}
+   478→            </TabsTrigger>
+   479→            <TabsTrigger
+   480→              value="appointments"
+   481→              className="data-[state=active]:bg-teal-600 data-[state=active]:text-white rounded-md text-sm font-medium px-4"
+   482→            >
+   483→              Appointments
+   484→              {appointments.length > 0 && (
+   485→                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-100 px-1.5 text-[10px] font-semibold text-teal-700 data-[state=active]:bg-white/20 data-[state=active]:text-white">
+   486→                  {appointments.length}
+   487→                </span>
+   488→              )}
+   489→            </TabsTrigger>
+   490→            <TabsTrigger
+   491→              value="payments"
+   492→              className="data-[state=active]:bg-teal-600 data-[state=active]:text-white rounded-md text-sm font-medium px-4"
+   493→            >
+   494→              Payments
+   495→              {payments.length > 0 && (
+   496→                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-100 px-1.5 text-[10px] font-semibold text-teal-700 data-[state=active]:bg-white/20 data-[state=active]:text-white">
+   497→                  {payments.length}
+   498→                </span>
+   499→              )}
+   500→            </TabsTrigger>
+   501→          </TabsList>
+   502→
+   503→          {/* ── Overview Tab ──────────────────────────────────────────────── */}
+   504→          <TabsContent value="overview">
+   505→            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+   506→              {/* Personal Information */}
+   507→              <Card className="border-0 bg-white shadow-sm">
+   508→                <CardHeader className="pb-3">
+   509→                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900">
+   510→                    <User className="h-4 w-4 text-teal-600" />
+   511→                    Personal Information
+   512→                  </CardTitle>
+   513→                </CardHeader>
+   514→                <CardContent className="space-y-1">
+   515→                  <InfoItem icon={User} label="Full Name" value={fullName} />
+   516→                  <InfoItem icon={Calendar} label="Date of Birth" value={formatDate(patient.dateOfBirth)} />
+   517→                  <InfoItem icon={User} label="Age" value={patient.age ? `${patient.age} years` : ''} />
+   518→                  <InfoItem icon={User} label="Gender" value={patient.gender} />
+   519→                  <InfoItem icon={Heart} label="Blood Group" value={patient.bloodGroup} />
+   520→                  <InfoItem icon={Building2} label="Occupation" value={patient.occupation} />
+   521→                  <InfoItem icon={UserPlus} label="Referred By" value={patient.referredBy} />
+   522→                </CardContent>
+   523→              </Card>
+   524→
+   525→              {/* Contact & Address */}
+   526→              <Card className="border-0 bg-white shadow-sm">
+   527→                <CardHeader className="pb-3">
+   528→                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900">
+   529→                    <MapPin className="h-4 w-4 text-teal-600" />
+   530→                    Contact & Address
+   531→                  </CardTitle>
+   532→                </CardHeader>
+   533→                <CardContent className="space-y-1">
+   534→                  <InfoItem icon={Phone} label="Primary Phone" value={patient.phone} />
+   535→                  <InfoItem icon={Phone} label="Secondary Phone" value={patient.phone2} />
+   536→                  <InfoItem icon={Mail} label="Email" value={patient.email} />
+   537→                  <InfoItem icon={MapPin} label="Address" value={patient.address} />
+   538→                  <InfoItem icon={MapPin} label="City" value={patient.city} />
+   539→                  <InfoItem icon={MapPin} label="State" value={patient.state} />
+   540→                  <InfoItem icon={MapPin} label="Pincode" value={patient.pincode} />
+   541→                </CardContent>
+   542→              </Card>
+   543→
+   544→              {/* Medical History */}
+   545→              <Card className="border-0 bg-white shadow-sm">
+   546→                <CardHeader className="pb-3">
+   547→                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900">
+   548→                    <Heart className="h-4 w-4 text-teal-600" />
+   549→                    Medical History
+   550→                  </CardTitle>
+   551→                </CardHeader>
+   552→                <CardContent className="space-y-1">
+   553→                  <div className="flex items-start gap-3 py-2">
+   554→                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+   555→                    <div className="min-w-0">
+   556→                      <p className="text-xs font-medium text-muted-foreground">Medical History</p>
+   557→                      <p className="text-sm font-medium text-foreground whitespace-pre-wrap break-words">
+   558→                        {patient.medicalHistory || '—'}
+   559→                      </p>
+   560→                    </div>
+   561→                  </div>
+   562→                  <div className="flex items-start gap-3 py-2">
+   563→                    <Stethoscope className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+   564→                    <div className="min-w-0">
+   565→                      <p className="text-xs font-medium text-muted-foreground">Dental History</p>
+   566→                      <p className="text-sm font-medium text-foreground whitespace-pre-wrap break-words">
+   567→                        {patient.dentalHistory || '—'}
+   568→                      </p>
+   569→                    </div>
+   570→                  </div>
+   571→                  <div className="flex items-start gap-3 py-2">
+   572→                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+   573→                    <div className="min-w-0">
+   574→                      <p className="text-xs font-medium text-muted-foreground">Allergies</p>
+   575→                      <p className="text-sm font-medium text-foreground whitespace-pre-wrap break-words">
+   576→                        {patient.allergies || 'None reported'}
+   577→                      </p>
+   578→                    </div>
+   579→                  </div>
+   580→                  <div className="flex items-start gap-3 py-2">
+   581→                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+   582→                    <div className="min-w-0">
+   583→                      <p className="text-xs font-medium text-muted-foreground">Current Medications</p>
+   584→                      <p className="text-sm font-medium text-foreground whitespace-pre-wrap break-words">
+   585→                        {patient.currentMedications || 'None'}
+   586→                      </p>
+   587→                    </div>
+   588→                  </div>
+   589→                </CardContent>
+   590→              </Card>
+   591→
+   592→              {/* Emergency Contact */}
+   593→              <Card className="border-0 bg-white shadow-sm">
+   594→                <CardHeader className="pb-3">
+   595→                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900">
+   596→                    <Phone className="h-4 w-4 text-teal-600" />
+   597→                    Emergency Contact
+   598→                  </CardTitle>
+   599→                </CardHeader>
+   600→                <CardContent className="space-y-1">
+   601→                  <InfoItem icon={User} label="Contact Name" value={patient.emergencyContactName} />
+   602→                  <InfoItem icon={Phone} label="Contact Phone" value={patient.emergencyContactPhone} />
+   603→                </CardContent>
+   604→              </Card>
+   605→
+   606→              {/* Insurance */}
+   607→              <Card className="border-0 bg-white shadow-sm">
+   608→                <CardHeader className="pb-3">
+   609→                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900">
+   610→                    <ShieldCheck className="h-4 w-4 text-teal-600" />
+   611→                    Insurance
+   612→                  </CardTitle>
+   613→                </CardHeader>
+   614→                <CardContent className="space-y-1">
+   615→                  <InfoItem icon={ShieldCheck} label="Provider" value={patient.insuranceProvider} />
+   616→                  <InfoItem icon={Hash} label="Insurance Number" value={patient.insuranceNumber} />
+   617→                </CardContent>
+   618→              </Card>
+   619→
+   620→              {/* Notes */}
+   621→              {patient.notes && (
+   622→                <Card className="border-0 bg-white shadow-sm">
+   623→                  <CardHeader className="pb-3">
+   624→                    <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900">
+   625→                      <FileText className="h-4 w-4 text-teal-600" />
+   626→                      Notes
+   627→                    </CardTitle>
+   628→                  </CardHeader>
+   629→                  <CardContent>
+   630→                    <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed">
+   631→                      {patient.notes}
+   632→                    </p>
+   633→                  </CardContent>
+   634→                </Card>
+   635→              )}
+   636→            </div>
+   637→          </TabsContent>
+   638→
+   639→          {/* ── Visits Tab ────────────────────────────────────────────────── */}
+   640→          <TabsContent value="visits">
+   641→            <Card className="border-0 bg-white shadow-sm overflow-hidden">
+   642→              {visits.length === 0 ? (
+   643→                <CardContent className="flex flex-col items-center justify-center py-16">
+   644→                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 mb-4">
+   645→                    <EyeOff className="h-6 w-6 text-gray-400" />
+   646→                  </div>
+   647→                  <p className="text-sm font-medium text-gray-500">No visits recorded yet</p>
+   648→                  <p className="mt-1 text-xs text-gray-400">Visits will appear here after they are created.</p>
+   649→                </CardContent>
+   650→              ) : (
+   651→                <div className="overflow-x-auto">
+   652→                  <Table>
+   653→                    <TableHeader>
+   654→                      <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+   655→                        <TableHead className="w-8"></TableHead>
+   656→                        <TableHead className="font-semibold">Date</TableHead>
+   657→                        <TableHead className="font-semibold">Doctor</TableHead>
+   658→                        <TableHead className="font-semibold">Complaint</TableHead>
+   659→                        <TableHead className="font-semibold">Diagnosis</TableHead>
+   660→                        <TableHead className="font-semibold text-right">Amount</TableHead>
+   661→                      </TableRow>
+   662→                    </TableHeader>
+   663→                    <TableBody>
+   664→                      {visits.map((visit) => (
+   665→                        <Collapsible
+   666→                          key={visit.id}
+   667→                          open={expandedVisit === visit.id}
+   668→                          onOpenChange={(open) => setExpandedVisit(open ? visit.id : null)}
+   669→                        >n                          <CollapsibleTrigger asChild>
+   670→                            <TableRow className="cursor-pointer hover:bg-teal-50/50 transition-colors group">
+   671→                              <TableCell className="w-8">
+   672→                                {expandedVisit === visit.id ? (
+   673→                                  <ChevronUp className="h-4 w-4 text-gray-400" />
+   674→                                ) : (
+   675→                                  <ChevronDown className="h-4 w-4 text-gray-400" />
+   676→                                )}
+   677→                              </TableCell>
+   678→                              <TableCell className="font-medium whitespace-nowrap">
+   679→                                {formatDate(visit.date)}
+   680→                              </TableCell>
+   681→                              <TableCell className="whitespace-nowrap">{visit.doctorName || '—'}</TableCell>
+   682→                              <TableCell className="max-w-[200px] truncate" title={visit.chiefComplaint}>
+   683→                                {visit.chiefComplaint || '—'}
+   684→                              </TableCell>
+   685→                              <TableCell className="max-w-[200px] truncate" title={visit.diagnosis}>
+   686→                                {visit.diagnosis || '—'}
+   687→                              </TableCell>
+   688→                              <TableCell className="text-right font-semibold whitespace-nowrap">
+   689→                                {visit.totalAmount ? inrFormat(visit.totalAmount) : '—'}
+   690→                              </TableCell>
+   691→                            </TableRow>
+   692→                          </CollapsibleTrigger>
+   693→                          <CollapsibleContent asChild>
+   694→                            <>
+   695→                              <TableRow className="bg-teal-50/30 hover:bg-teal-50/30">
+   696→                                <TableCell colSpan={6} className="py-3">
+   697→                                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   698→                                    <div>
+   699→                                      <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider mb-1">Treatment Done</p>
+   700→                                      <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+   701→                                        {visit.treatmentDone || '—'}
+   702→                                      </p>
+   703→                                    </div>
+   704→                                    <div>
+   705→                                      <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider mb-1">Prescription</p>
+   706→                                      <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+   707→                                        {visit.prescription || '—'}
+   708→                                      </p>
+   709→                                    </div>
+   710→                                    <div>
+   711→                                      <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider mb-1">Follow-Up</p>
+   712→                                      <p className="text-sm text-gray-700">
+   713→                                        {visit.followUpDate ? formatDate(visit.followUpDate) : 'None'}
+   714→                                      </p>
+   715→                                      {visit.discount > 0 && (
+   716→                                        <p className="mt-2 text-xs text-emerald-600 font-medium">
+   717→                                          Discount: {inrFormat(visit.discount)}
+   718→                                        </p>
+   719→                                      )}
+   720→                                    </div>
+   721→                                  </div>
+   722→                                  {visit.notes && (
+   723→                                    <div className="mt-3 rounded-lg border border-teal-100 bg-white p-3">
+   724→                                      <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider mb-1">Notes</p>
+   725→                                      <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">
+   726→                                        {visit.notes}
+   727→                                      </p>
+   728→                                    </div>
+   729→                                  )}
+   730→                                </TableCell>
+   731→                              </TableRow>
+   732→                              <TableRow className="border-b-0">
+   733→                                <TableCell colSpan={6} className="h-1 p-0" />
+   734→                              </TableRow>
+   735→                            </>
+   736→                          </CollapsibleContent>
+   737→                        </Collapsible>
+   738→                      ))}
+   739→                    </TableBody>
+   740→                  </Table>
+   741→                </div>
+   742→              )}
+   743→            </Card>
+   744→          </TabsContent>
+   745→
+   746→          {/* ── Appointments Tab ──────────────────────────────────────────── */}
+   747→          <TabsContent value="appointments">
+   748→            <Card className="border-0 bg-white shadow-sm overflow-hidden">
+   749→              {appointments.length === 0 ? (
+   750→                <CardContent className="flex flex-col items-center justify-center py-16">
+   751→                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 mb-4">
+   752→                    <Calendar className="h-6 w-6 text-gray-400" />
+   753→                  </div>
+   754→                  <p className="text-sm font-medium text-gray-500">No appointments scheduled</p>
+   755→                  <p className="mt-1 text-xs text-gray-400">Appointments will appear here after they are created.</p>
+   756→                </CardContent>
+   757→              ) : (
+   758→                <div className="overflow-x-auto">
+   759→                  <Table>
+   760→                    <TableHeader>
+   761→                      <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+   762→                        <TableHead className="font-semibold">Date</TableHead>
+   763→                        <TableHead className="font-semibold">Time</TableHead>
+   764→                        <TableHead className="font-semibold">Doctor</TableHead>
+   765→                        <TableHead className="font-semibold">Treatment</TableHead>
+   766→                        <TableHead className="font-semibold">Status</TableHead>
+   767→                      </TableRow>
+   768→                    </TableHeader>
+   769→                    <TableBody>
+   770→                      {appointments.map((appt) => (
+   771→                        <TableRow key={appt.id} className="hover:bg-teal-50/50 transition-colors">
+   772→                          <TableCell className="font-medium whitespace-nowrap">
+   773→                            {formatDate(appt.date)}
+   774→                          </TableCell>
+   775→                          <TableCell className="whitespace-nowrap">
+   776→                            <span className="inline-flex items-center gap-1.5">
+   777→                              <Clock className="h-3.5 w-3.5 text-gray-400" />
+   778→                              {appt.time}
+   779→                              {appt.endTime && (
+   780→                                <span className="text-gray-400">– {appt.endTime}</span>
+   781→                              )}
+   782→                            </span>
+   783→                          </TableCell>
+   784→                          <TableCell className="whitespace-nowrap">{appt.doctorName || '—'}</TableCell>
+   785→                          <TableCell className="max-w-[200px] truncate" title={appt.treatmentType || appt.reason}>
+   786→                            {appt.treatmentType || appt.reason || '—'}
+   787→                          </TableCell>
+   788→                          <TableCell>
+   789→                            <Badge className={getStatusBadge(appt.status)}>
+   790→                              {appt.status}
+   791→                            </Badge>
+   792→                          </TableCell>
+   793→                        </TableRow>
+   794→                      ))}
+   795→                    </TableBody>
+   796→                  </Table>
+   797→                </div>
+   798→              )}
+   799→            </Card>
+   800→          </TabsContent>
+   801→
+   802→          {/* ── Payments Tab ──────────────────────────────────────────────── */}
+   803→          <TabsContent value="payments">
+   804→            <Card className="border-0 bg-white shadow-sm overflow-hidden">
+   805→              {payments.length === 0 ? (
+   806→                <CardContent className="flex flex-col items-center justify-center py-16">
+   807→                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 mb-4">
+   808→                    <CreditCard className="h-6 w-6 text-gray-400" />
+   809→                  </div>
+   810→                  <p className="text-sm font-medium text-gray-500">No payments recorded</p>
+   811→                  <p className="mt-1 text-xs text-gray-400">Payments will appear here after they are created.</p>
+   812→                </CardContent>
+   813→              ) : (
+   814→                <div className="overflow-x-auto">
+   815→                  <Table>
+   816→                    <TableHeader>
+   817→                      <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+   818→                        <TableHead className="font-semibold">Invoice #</TableHead>
+   819→                        <TableHead className="font-semibold">Date</TableHead>
+   820→                        <TableHead className="font-semibold text-right">Amount</TableHead>
+   821→                        <TableHead className="font-semibold text-right">Paid</TableHead>
+   822→                        <TableHead className="font-semibold text-right">Balance</TableHead>
+   823→                        <TableHead className="font-semibold">Status</TableHead>
+   824→                      </TableRow>
+   825→                    </TableHeader>
+   826→                    <TableBody>
+   827→                      {payments.map((payment) => (
+   828→                        <TableRow key={payment.id} className="hover:bg-teal-50/50 transition-colors">
+   829→                          <TableCell className="font-medium whitespace-nowrap">
+   830→                            <span className="inline-flex items-center gap-1.5">
+   831→                              <FileText className="h-3.5 w-3.5 text-gray-400" />
+   832→                              {payment.invoiceNumber || payment.paymentId}
+   833→                            </span>
+   834→                          </TableCell>
+   835→                          <TableCell className="whitespace-nowrap">{formatDate(payment.date)}</TableCell>
+   836→                          <TableCell className="text-right font-medium whitespace-nowrap">
+   837→                            {inrFormat(payment.amount)}
+   838→                          </TableCell>
+   839→                          <TableCell className="text-right font-medium whitespace-nowrap text-emerald-600">
+   840→                            {inrFormat(payment.paidAmount)}
+   841→                          </TableCell>
+   842→                          <TableCell className={`text-right font-semibold whitespace-nowrap ${payment.balanceAmount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+   843→                            {inrFormat(payment.balanceAmount)}
+   844→                          </TableCell>
+   845→                          <TableCell>
+   846→                            <Badge className={getStatusBadge(payment.status)}>
+   847→                              {payment.status}
+   848→                            </Badge>
+   849→                          </TableCell>
+   850→                        </TableRow>
+   851→                      ))}
+   852→                    </TableBody>
+   853→                  </Table>
+   854→                </div>
+   855→              )}
+   856→            </Card>
+   857→          </TabsContent>
+   858→        </Tabs>
+   859→      </div>
+   860→    </div>
+   861→  );
+   862→}
+   863→
