@@ -51,5 +51,23 @@ test
 prompt
 
 server.log
+
 # Skills directory
 /skills/
+
+# Uploads & temp
+/upload/
+/tool-results/
+/db/
+
+# IDE
+.vscode/
+.idea/
+
+# Misc deploy artifacts
+*.tar.gz
+download/
+Caddyfile
+examples/
+tests/
+bun.lock

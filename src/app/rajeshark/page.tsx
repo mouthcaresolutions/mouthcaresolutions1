@@ -485,8 +485,6 @@ export default function AdminPage() {
                 <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">This Week</p><p className="text-3xl font-bold text-blue-600 mt-1">{stats.recentWeekPosts}</p></div><ArrowUpRight className="h-10 w-10 text-blue-100" /></div></CardContent></Card>
               </div>
 
-              </div>
-
               {/* CRM Quick Access */}
               <Card className="border-2 border-teal-200 bg-gradient-to-r from-teal-50 to-emerald-50">
                 <CardContent className="p-6">
