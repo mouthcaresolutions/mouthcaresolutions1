@@ -214,8 +214,7 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
-    // Call the Z.ai internal API directly via fetch, bypassing the SDK
-    // which requires a config file that doesn't exist on Vercel's serverless environment
+    // Call the Z.ai API directly via fetch with auth headers
     const baseUrl = process.env.ZAI_BASE_URL || 'https://internal-api.z.ai/v1';
     const apiKey = process.env.ZAI_API_KEY || 'Z.ai';
     const prompt = generatePrompt(title, treatment, keywords, category);
@@ -226,6 +225,9 @@ async function generateArticle(title: string, treatment: string, keywords: strin
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'X-Z-AI-From': 'Z',
+        'X-Chat-Id': process.env.ZAI_CHAT_ID || 'chat-ae95fa55-0754-4476-bbb6-c071fc7cf845',
+        'X-User-Id': process.env.ZAI_USER_ID || 'e97277a1-c615-4b11-80ce-20c20af11a6a',
+        'X-Token': process.env.ZAI_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZTk3Mjc3YTEtYzYxNS00YjExLTgwY2UtMjBjMjBhZjExYTZhIiwiY2hhdF9pZCI6ImNoYXQtYWU5NWZhNTUtMDc1NC00NDc2LWJiYjYtYzA3MWZjN2NmODQ1IiwicGxhdGZvcm0iOiJ6YWkifQ.M1rZhOKoIzW2hCBPX59AU1Ule5TNkPfa3rlHTuQ9IXw',
       },
       body: JSON.stringify({
         model: 'glm-4-flash',

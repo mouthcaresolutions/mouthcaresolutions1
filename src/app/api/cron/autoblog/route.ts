@@ -125,6 +125,9 @@ STRUCTURE: Use H2/H3 headings. Include: What is ${treatment.name}, why it's impo
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'X-Z-AI-From': 'Z',
+        'X-Chat-Id': process.env.ZAI_CHAT_ID || 'chat-ae95fa55-0754-4476-bbb6-c071fc7cf845',
+        'X-User-Id': process.env.ZAI_USER_ID || 'e97277a1-c615-4b11-80ce-20c20af11a6a',
+        'X-Token': process.env.ZAI_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZTk3Mjc3YTEtYzYxNS00YjExLTgwY2UtMjBjMjBhZjExYTZhIiwiY2hhdF9pZCI6ImNoYXQtYWU5NWZhNTUtMDc1NC00NDc2LWJiYjYtYzA3MWZjN2NmODQ1IiwicGxhdGZvcm0iOiJ6YWkifQ.M1rZhOKoIzW2hCBPX59AU1Ule5TNkPfa3rlHTuQ9IXw',
       },
       body: JSON.stringify({
         model: 'glm-4-flash',
