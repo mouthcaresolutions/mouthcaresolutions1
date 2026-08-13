@@ -24,8 +24,6 @@ function createPrismaClient() {
   return new PrismaClient({
     adapter: adapter as any,
     log: ['error'],
-    // Explicitly override datasource URL to prevent Prisma from reading env var as 'undefined'
-    datasources: { db: { url: 'file:./dummy.db' } },
   })
 }
 
