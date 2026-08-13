@@ -81,11 +81,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
 
+      const hash = String(user.passwordHash || '');
       let passwordValid = false;
-      if (isBcryptHash(user.passwordHash)) {
-        passwordValid = verifyPassword(password, user.passwordHash);
+      if (isBcryptHash(hash)) {
+        passwordValid = verifyPassword(password, hash);
       } else {
-        passwordValid = verifyLegacySHA256(password, user.passwordHash);
+        passwordValid = verifyLegacySHA256(password, hash);
         if (passwordValid) {
           console.log(`Migrating password hash for user '${username}' from SHA-256 to bcrypt`);
           const newHash = hashPassword(password);
