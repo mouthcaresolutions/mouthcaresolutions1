@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { validateSession, seedAdmin } from '@/lib/auth';
 import { autoShareNewPost } from '@/lib/social-poster';
+import { fetchBlogImage, prependImageToContent } from '@/lib/fetch-blog-image';
 
 const ALL_TREATMENTS = [
   { name: 'Root Canal Treatment', keywords: ['root canal', 'endodontic', 'pulp therapy', 'root canal treatment vijayawada', 'painless root canal'] },
@@ -124,7 +125,7 @@ function generateTitles(treatment: string): string[] {
     `Frequently Asked Questions About ${t}`,
     `${t} Without Pain: Modern Techniques`,
     `How Long Does ${t} Take? Time Guide`,
-    `Insurance Coverage for ${t} in ${loc}`,
+    `Cost and Payment Options for ${t} in ${loc}`,
     `${t} Success Rate: What Studies Show`,
   ];
 }
@@ -320,11 +321,20 @@ export async function POST(request: NextRequest) {
           if (result) {
             const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36) + i;
             
+            // Fetch unique image for this blog post
+            let contentWithImage = result.content;
+            try {
+              const imageUrl = await fetchBlogImage(treatment.name, title, category);
+              contentWithImage = prependImageToContent(result.content, imageUrl, title);
+            } catch (imgErr) {
+              console.error('Image fetch failed for:', title, imgErr);
+            }
+
             const newPost = await db.blogPost.create({
               data: {
                 slug,
                 title,
-                content: result.content,
+                content: contentWithImage,
                 excerpt: result.excerpt,
                 metaDesc: result.metaDesc,
                 metaTitle: title,

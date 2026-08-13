@@ -59,6 +59,48 @@ export default function BlogDetailPage({ params }: { params: Promise<{ slug: str
   };
 
   const renderMarkdown = (md: string) => {
+    // Split content at <img> tags to render them as proper images
+    const imgRegex = /<img\s+[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*?)["'][^>]*\/?>/gi;
+    const parts: { type: 'img' | 'text'; content: string; src?: string; alt?: string }[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = imgRegex.exec(md)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', content: md.slice(lastIndex, match.index) });
+      }
+      parts.push({ type: 'img', content: match[0], src: match[1], alt: match[2] || '' });
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < md.length) {
+      parts.push({ type: 'text', content: md.slice(lastIndex) });
+    }
+
+    if (parts.length === 0) {
+      parts.push({ type: 'text', content: md });
+    }
+
+    return parts.map((part, idx) => {
+      if (part.type === 'img' && part.src) {
+        return (
+          <figure key={idx} className="my-8">
+            <img
+              src={part.src}
+              alt={part.alt}
+              className="w-full h-auto rounded-xl shadow-md"
+              loading="lazy"
+            />
+            {part.alt && part.alt.length > 5 && (
+              <figcaption className="text-sm text-gray-400 mt-2 text-center">{part.alt}</figcaption>
+            )}
+          </figure>
+        );
+      }
+      return <div key={idx}>{renderMarkdownText(part.content)}</div>;
+    });
+  };
+
+  const renderMarkdownText = (md: string) => {
     return md.split("\n").map((line, i) => {
       if (line.startsWith("### ")) {
         return <h3 key={i} className="text-xl font-bold text-gray-900 mt-10 mb-4 leading-tight">{renderInlineFormatting(line.replace("### ", ""))}</h3>;

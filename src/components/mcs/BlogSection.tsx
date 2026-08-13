@@ -18,6 +18,7 @@ interface BlogPost {
   keywords: string | null;
   scheduledAt: string;
   createdAt: string;
+  thumbUrl: string | null;
 }
 
 export default function BlogSection() {
@@ -85,8 +86,12 @@ export default function BlogSection() {
                   className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all"
                 >
                   <div className="grid md:grid-cols-2 gap-0">
-                    <div className="h-52 md:h-auto bg-gradient-to-br from-teal-100 to-emerald-100 flex items-center justify-center">
-                      <BookOpen className="h-20 w-20 text-teal-300" />
+                    <div className="h-52 md:h-auto bg-gradient-to-br from-teal-100 to-emerald-100 flex items-center justify-center overflow-hidden">
+                      {posts[0].thumbUrl ? (
+                        <img src={posts[0].thumbUrl} alt={posts[0].title} className="w-full h-full object-cover" />
+                      ) : (
+                        <BookOpen className="h-20 w-20 text-teal-300" />
+                      )}
                     </div>
                     <div className="p-6 sm:p-8 flex flex-col justify-center">
                       <Badge className="bg-teal-100 text-teal-800 mb-3 w-fit">{posts[0].category}</Badge>
@@ -119,8 +124,12 @@ export default function BlogSection() {
                   >
                     <Link href={`/blog/${post.slug}`} className="block group">
                       <article className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition-all h-full">
-                        <div className="h-40 bg-gradient-to-br from-teal-50 to-emerald-50 flex items-center justify-center">
-                          <BookOpen className="h-10 w-10 text-teal-200 group-hover:scale-110 transition-transform" />
+                        <div className="h-40 bg-gradient-to-br from-teal-50 to-emerald-50 flex items-center justify-center overflow-hidden">
+                          {post.thumbUrl ? (
+                            <img src={post.thumbUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          ) : (
+                            <BookOpen className="h-10 w-10 text-teal-200 group-hover:scale-110 transition-transform" />
+                          )}
                         </div>
                         <div className="p-5">
                           <Badge variant="secondary" className="bg-teal-50 text-teal-700 text-xs mb-2">{post.category}</Badge>

@@ -6,7 +6,31 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Calendar, Search, ArrowLeft, ArrowRight, Loader2, X, BookOpen, Clock } from "lucide-react";
+import { Calendar, Search, ArrowLeft, ArrowRight, Loader2, X, BookOpen, Clock, ImageOff } from "lucide-react";
+
+const CATEGORY_FALLBACKS: Record<string, string> = {
+  'Oral Hygiene': 'https://images.pexels.com/photos/5622020/pexels-photo-5622020.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'Pediatric Dentistry': 'https://images.pexels.com/photos/52527/pexels-photo-52527.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'Orthodontics': 'https://images.pexels.com/photos/6528861/pexels-photo-6528861.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'Implants & Prosthodontics': 'https://images.pexels.com/photos/6502305/pexels-photo-6502305.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'Preventive Dental Care': 'https://images.pexels.com/photos/6627484/pexels-photo-6627484.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'General Dentistry': 'https://images.pexels.com/photos/4045552/pexels-photo-4045552.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'Cosmetic Dentistry': 'https://images.pexels.com/photos/6627572/pexels-photo-6627572.jpeg?auto=compress&cs=tinysrgb&w=600',
+};
+const DEFAULT_IMG = 'https://images.pexels.com/photos/4045552/pexels-photo-4045552.jpeg?auto=compress&cs=tinysrgb&w=600';
+
+function extractImage(content: string): string | null {
+  const m = content.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+  return m?.[1] || null;
+}
+
+function getPostImage(post: BlogPost, content?: string): string {
+  if (content) {
+    const img = extractImage(content);
+    if (img) return img;
+  }
+  return CATEGORY_FALLBACKS[post.category] || DEFAULT_IMG;
+}
 
 const CATEGORIES = [
   "All",
@@ -30,6 +54,7 @@ interface BlogPost {
   keywords: string | null;
   scheduledAt: string;
   createdAt: string;
+  thumbUrl: string | null;
 }
 
 export default function BlogPage() {
@@ -148,8 +173,12 @@ export default function BlogPage() {
                   className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl overflow-hidden border border-teal-100 hover:shadow-xl transition-all"
                 >
                   <div className="grid md:grid-cols-2 gap-0">
-                    <div className="h-64 md:h-auto bg-gradient-to-br from-teal-200 to-emerald-300 flex items-center justify-center">
-                      <BookOpen className="h-24 w-24 text-teal-400" />
+                    <div className="h-64 md:h-auto bg-gradient-to-br from-teal-200 to-emerald-300 flex items-center justify-center overflow-hidden">
+                      {posts[0].thumbUrl ? (
+                        <img src={posts[0].thumbUrl} alt={posts[0].title} className="w-full h-full object-cover" />
+                      ) : (
+                        <BookOpen className="h-24 w-24 text-teal-400" />
+                      )}
                     </div>
                     <div className="p-8 flex flex-col justify-center">
                       <Badge className="bg-teal-100 text-teal-800 mb-3 w-fit">{posts[0].category}</Badge>
@@ -182,8 +211,12 @@ export default function BlogPage() {
                     exit={{ opacity: 0, y: 20 }}
                     className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition-all group flex flex-col"
                   >
-                    <div className="h-44 bg-gradient-to-br from-teal-100 to-emerald-100 flex items-center justify-center">
-                      <BookOpen className="h-12 w-12 text-teal-300 group-hover:scale-110 transition-transform" />
+                    <div className="h-44 bg-gradient-to-br from-teal-100 to-emerald-100 flex items-center justify-center overflow-hidden">
+                      {post.thumbUrl ? (
+                        <img src={post.thumbUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <BookOpen className="h-12 w-12 text-teal-300 group-hover:scale-110 transition-transform" />
+                      )}
                     </div>
                     <div className="p-5 flex flex-col flex-1">
                       <Badge variant="secondary" className="bg-teal-50 text-teal-700 text-xs mb-3 w-fit">{post.category}</Badge>

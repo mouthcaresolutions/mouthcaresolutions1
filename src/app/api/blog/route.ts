@@ -38,13 +38,22 @@ export async function GET(request: NextRequest) {
           keywords: true,
           scheduledAt: true,
           createdAt: true,
+          content: true,
         },
       }),
       prisma.blogPost.count({ where }),
     ]);
 
+    // Extract thumbnail URLs from content so listing page can show images
+    const postsWithImages = posts.map(p => {
+      const imgMatch = p.content?.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+      const thumbUrl = imgMatch?.[1] || null;
+      const { content: _c, ...rest } = p;
+      return { ...rest, thumbUrl };
+    });
+
     return NextResponse.json({
-      posts,
+      posts: postsWithImages,
       total,
       page,
       limit,
