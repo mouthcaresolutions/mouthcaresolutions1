@@ -1,13 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
-import crypto from 'crypto'
-
-const SALT = 'MCS@2024Secure';
-
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(`${password}:${SALT}`).digest('hex');
-}
+import bcrypt from 'bcryptjs'
 
 async function main() {
   const dbUrl = process.env.DATABASE_URL || '';
@@ -18,23 +12,28 @@ async function main() {
     authToken: process.env.TURSO_AUTH_TOKEN || undefined,
   });
 
-  const adapter = new PrismaLibSQL(libsql);
-  const prisma = new PrismaClient({ adapter });
+  const adapter = new PrismaLibSQL(libsql as any);
+  const prisma = new PrismaClient({ adapter } as any);
 
-  // Seed admin user
+  // Seed admin user only if ADMIN_PASSWORD is provided
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  
   const count = await prisma.adminUser.count();
-  if (count === 0) {
+  if (count === 0 && adminPassword) {
     await prisma.adminUser.create({
       data: {
-        username: 'admin',
-        passwordHash: hashPassword('admin123'),
+        username: adminUsername,
+        passwordHash: bcrypt.hashSync(adminPassword, 12),
         name: 'Admin',
         role: 'admin',
       },
     });
-    console.log('✅ Admin user created: admin / admin123');
+    console.log('Admin user created:', adminUsername);
+  } else if (count === 0) {
+    console.log('WARNING: Set ADMIN_PASSWORD env var to seed admin user');
   } else {
-    console.log('ℹ️  Admin user already exists');
+    console.log('Admin user already exists');
   }
 
   // Seed auto-blogger config
@@ -48,14 +47,14 @@ async function main() {
         status: 'idle',
       },
     });
-    console.log('✅ Auto-blogger config created');
+    console.log('Auto-blogger config created');
   } else {
-    console.log('ℹ️  Auto-blogger config already exists');
+    console.log('Auto-blogger config already exists');
   }
 
   await prisma.$disconnect();
 }
 
 main()
-  .then(() => console.log('🌱 Seeding complete!'))
+  .then(() => console.log('Seeding complete!'))
   .catch((e) => { console.error(e); process.exit(1); });

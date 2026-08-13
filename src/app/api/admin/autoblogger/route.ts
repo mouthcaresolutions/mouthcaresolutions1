@@ -213,6 +213,7 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
+    // @ts-expect-error - z-ai-web-dev-sdk dynamic import
     const { generate } = await import('z-ai-web-dev-sdk');
     const prompt = generatePrompt(title, treatment, keywords, category);
     
@@ -286,7 +287,8 @@ export async function POST(request: NextRequest) {
 
     // Generate posts now
     if (action === 'generateNow') {
-      const count = body.count || 3;
+      const count = Math.min(body.count || 3, 10); // Cap at 10 per request
+      const publishDirectly = body.publishDirectly === true; // Explicit opt-in only
       const startTime = Date.now();
       let postsCreated = 0;
       let postsFailed = 0;
@@ -328,18 +330,20 @@ export async function POST(request: NextRequest) {
                 metaTitle: title,
                 category,
                 keywords: treatment.keywords.join(', '),
-                status: 'published',
+                status: publishDirectly ? 'published' : 'draft',
                 author: 'Mouth Care Solutions',
                 scheduledAt: new Date(),
               },
             });
             postsCreated++;
 
-            // Auto-share to enabled social platforms
-            try {
-              await autoShareNewPost(newPost.id, newPost.title, newPost.excerpt || '', newPost.slug, newPost.keywords);
-            } catch (socialErr) {
-              console.error('Social auto-share error:', socialErr);
+            // Only auto-share if explicitly published
+            if (publishDirectly) {
+              try {
+                await autoShareNewPost(newPost.id, newPost.title, newPost.excerpt || '', newPost.slug, newPost.keywords);
+              } catch (socialErr) {
+                console.error('Social auto-share error:', socialErr);
+              }
             }
           } else {
             postsFailed++;
@@ -420,7 +424,7 @@ export async function POST(request: NextRequest) {
                 metaTitle: uniqueTitle,
                 category,
                 keywords: treatment.keywords.join(', '),
-                status: 'published',
+                status: 'draft', // Always draft for bulk - requires review
                 author: 'Mouth Care Solutions',
                 scheduledAt: new Date(Date.now() + i * 3600000),
               },

@@ -18,6 +18,8 @@ import {
 
 export default function ContactSection() {
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -25,11 +27,29 @@ export default function ContactSection() {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
-    setFormData({ name: "", email: "", phone: "", message: "" });
+    setError("");
+    setSending(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong.");
+        return;
+      }
+      setSubmitted(true);
+      setFormData({ name: "", email: "", phone: "", message: "" });
+      setTimeout(() => setSubmitted(false), 5000);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -186,14 +206,19 @@ export default function ContactSection() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <CheckCircle2 className="h-16 w-16 text-teal-500 mb-4" />
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                  Message Sent!
+                  Message Sent Successfully!
                 </h4>
                 <p className="text-gray-500">
-                  Thank you for reaching out. We will get back to you shortly.
+                  Thank you for reaching out, {formData.name || "friend"}. Our team will contact you shortly.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
                 <div className="grid sm:grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
@@ -248,10 +273,17 @@ export default function ContactSection() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-teal-600 hover:bg-teal-700 text-white h-12"
+                  disabled={sending}
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white h-12 disabled:opacity-50"
                 >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send Message
+                  {sending ? (
+                    <span className="animate-pulse">Sending...</span>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Message
+                    </>
+                  )}
                 </Button>
               </form>
             )}

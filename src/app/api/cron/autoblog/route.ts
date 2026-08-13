@@ -62,9 +62,9 @@ function generateTitle(treatment: string): string {
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret
-    const secret = request.headers.get('authorization') || request.nextUrl.searchParams.get('secret');
-    if (secret !== process.env.CRON_SECRET) {
+    // Verify cron secret - HEADER ONLY (no query string for security)
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
     const title = generateTitle(treatment.name);
     const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
 
+    // @ts-expect-error - z-ai-web-dev-sdk dynamic import
     const { generate } = await import('z-ai-web-dev-sdk');
     const prompt = `You are a professional dental content writer for Mouth Care Solutions, a leading dental clinic in Vijayawada, Andhra Pradesh, India. Write a comprehensive, SEO-optimized, long-form article (minimum 1500 words, ideally 2000+ words) in markdown format.
 
@@ -120,7 +121,7 @@ STRUCTURE: Use H2/H3 headings. Include: What is ${treatment.name}, why it's impo
         metaTitle: title,
         category,
         keywords: treatment.keywords.join(', '),
-        status: 'published',
+        status: 'draft',  // AI content goes to draft for human review
         author: 'Mouth Care Solutions',
         scheduledAt: new Date(),
       },
