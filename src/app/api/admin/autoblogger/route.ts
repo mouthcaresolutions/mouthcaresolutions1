@@ -290,6 +290,7 @@ export async function POST(request: NextRequest) {
       let postsCreated = 0;
       let postsFailed = 0;
       let errorMsg: string | null = null;
+      let lastError: string | null = null;
 
       // Update status to running
       const config = await blogDb.getAutoBloggerConfig();
@@ -348,6 +349,7 @@ export async function POST(request: NextRequest) {
             }
           } else {
             postsFailed++;
+            lastError = 'Article generation returned null for: ' + title;
           }
           
           // Small delay between generations
@@ -355,6 +357,7 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error('Post generation error:', err);
           postsFailed++;
+          lastError = (err as any)?.message || String(err);
         }
       }
 
@@ -439,10 +442,11 @@ export async function POST(request: NextRequest) {
       });
 
       return NextResponse.json({
-        success: true,
+        success: postsCreated > 0,
         postsCreated,
         postsFailed,
         duration: Math.round((Date.now() - startTime) / 1000),
+        ...(lastError ? { lastError } : {}),
       });
     }
 
