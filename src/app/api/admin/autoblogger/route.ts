@@ -228,7 +228,10 @@ async function generateArticle(title: string, treatment: string, keywords: strin
 
     const content = result?.choices?.[0]?.message?.content || '';
 
-    if (!content || content.length < 500) return null;
+    if (!content || content.length < 500) {
+      console.error('Article too short or empty:', title, 'len:', content?.length || 0, 'preview:', content?.substring(0, 100));
+      return null;
+    }
 
     const firstParagraph = content.split('\n\n').find(p => p.length > 100 && !p.startsWith('#')) || '';
     const excerpt = firstParagraph.substring(0, 300).trim();
@@ -236,8 +239,10 @@ async function generateArticle(title: string, treatment: string, keywords: strin
 
     return { content, excerpt, metaDesc };
   } catch (error) {
-    console.error('Article generation failed:', title, error);
-    return null;
+    const msg = (error as any)?.message || String(error);
+    console.error('Article generation failed:', title, msg);
+    // Throw instead of returning null so callers can capture the error
+    throw new Error(`AI generation failed: ${msg}`);
   }
 }
 
@@ -373,15 +378,16 @@ export async function POST(request: NextRequest) {
         status: postsCreated > 0 ? 'success' : 'failed',
         postsCreated,
         postsFailed,
-        error: errorMsg,
+        error: lastError,
         duration: Math.round((Date.now() - startTime) / 1000),
       });
 
       return NextResponse.json({ 
-        success: true, 
+        success: postsCreated > 0, 
         postsCreated, 
         postsFailed,
         duration: Math.round((Date.now() - startTime) / 1000),
+        ...(lastError ? { lastError } : {}),
       });
     }
 
