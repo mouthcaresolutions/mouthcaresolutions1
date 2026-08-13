@@ -1,14 +1,14 @@
 const { createClient } = require('@libsql/client');
 const crypto = require('crypto');
 
-const SALT = 'MCS@2024Secure';
+const bcrypt = require('bcryptjs');
 function hashPassword(password) {
-  return crypto.createHash('sha256').update(`${password}:${SALT}`).digest('hex');
+  return bcrypt.hashSync(password, 12);
 }
 
 async function main() {
   const db = createClient({
-    url: 'libsql://mcs-dental-mouthcaresolutions.aws-ap-south-1.turso.io',
+    url: process.env.DATABASE_URL,
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
 
@@ -127,13 +127,18 @@ async function main() {
   });
 
   if (existing.rows[0].count === 0) {
-    const id = 'admin_' + crypto.randomBytes(8).toString('hex');
-    const passwordHash = hashPassword('admin123');
-    await db.execute({
-      sql: 'INSERT INTO AdminUser (id, username, passwordHash, name, role) VALUES (?, ?, ?, ?, ?)',
-      args: [id, 'admin', passwordHash, 'Admin', 'admin']
-    });
-    console.log('Admin user created: admin / admin123');
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.log('WARNING: Set ADMIN_PASSWORD env var to create admin user');
+    } else {
+      const id = 'admin_' + crypto.randomBytes(8).toString('hex');
+      const passwordHash = hashPassword(adminPassword);
+      await db.execute({
+        sql: 'INSERT INTO AdminUser (id, username, passwordHash, name, role) VALUES (?, ?, ?, ?, ?)',
+        args: [id, 'admin', passwordHash, 'Admin', 'admin']
+      });
+      console.log('Admin user created successfully');
+    }
   } else {
     console.log('Admin user already exists');
   }

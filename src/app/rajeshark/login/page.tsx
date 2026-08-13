@@ -100,8 +100,7 @@ export default function AdminLoginPage() {
             </Button>
           </form>
           <p className="text-xs text-gray-400 text-center mt-4">
-            Admin: admin / admin123<br/>
-            Front Office: frontoffice / frontoffice123
+            Contact your administrator for login credentials.
           </p>
         </CardContent>
       </Card>

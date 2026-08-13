@@ -2,7 +2,7 @@ const { createClient } = require('@libsql/client');
 
 async function main() {
   const db = createClient({
-    url: 'libsql://mcs-dental-mouthcaresolutions.aws-ap-south-1.turso.io',
+    url: process.env.DATABASE_URL,
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
 
@@ -261,21 +261,26 @@ async function main() {
     console.log('CRM doctors already exist');
   }
 
-  // Add frontoffice user
+  // Add frontoffice user (uses bcryptjs, same as auth system)
   const existingUsers = await db.execute({
     sql: "SELECT COUNT(*) as c FROM AdminUser WHERE username = 'frontoffice'",
     args: []
   });
   if (existingUsers.rows[0].c === 0) {
     const crypto = require('crypto');
-    const SALT = 'MCS@2024Secure';
-    const hash = crypto.createHash('sha256').update('frontoffice123:' + SALT).digest('hex');
-    const id = 'fo_' + crypto.randomBytes(8).toString('hex');
-    await db.execute({
-      sql: 'INSERT INTO AdminUser (id, username, passwordHash, name, role) VALUES (?, ?, ?, ?, ?)',
-      args: [id, 'frontoffice', hash, 'Front Office', 'frontoffice']
-    });
-    console.log('Front office user created: frontoffice / frontoffice123');
+    const bcrypt = require('bcryptjs');
+    const foPassword = process.env.FRONT_OFFICE_PASSWORD;
+    if (!foPassword) {
+      console.log('WARNING: Set FRONT_OFFICE_PASSWORD env var to create frontoffice user');
+    } else {
+      const hash = bcrypt.hashSync(foPassword, 12);
+      const id = 'fo_' + crypto.randomBytes(8).toString('hex');
+      await db.execute({
+        sql: 'INSERT INTO AdminUser (id, username, passwordHash, name, role) VALUES (?, ?, ?, ?, ?)',
+        args: [id, 'frontoffice', hash, 'Front Office', 'frontoffice']
+      });
+      console.log('Front office user created successfully');
+    }
   } else {
     console.log('Front office user already exists');
   }
