@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 
 /**
  * Combined middleware:
@@ -13,8 +12,8 @@ const ALLOWED_ORIGINS = [
   'https://www.mouthcaresolutions.com',
 ];
 
-// JWT verification for Edge runtime (no bcrypt dependency)
-function verifyJWTEdge(token: string): { username: string; role: string; name: string } | null {
+// JWT verification using Web Crypto API (Edge-compatible, no Node.js crypto dependency)
+async function verifyJWTEdge(token: string): Promise<{ username: string; role: string; name: string } | null> {
   try {
     const secret = process.env.JWT_SECRET;
     if (!secret || secret.length < 32) return null;
@@ -23,16 +22,25 @@ function verifyJWTEdge(token: string): { username: string; role: string; name: s
     if (parts.length !== 3) return null;
 
     const [header, body, signature] = parts;
-    const expectedSig = crypto
-      .createHmac('sha256', secret)
-      .update(`${header}.${body}`)
-      .digest('base64url');
 
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+
+    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(`${header}.${body}`));
+    const expectedSig = btoa(String.fromCharCode(...new Uint8Array(sig)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    if (signature !== expectedSig) {
       return null;
     }
 
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf-8'));
+    const payload = JSON.parse(atob(body.replace(/-/g, '+').replace(/_/g, '/')));
 
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
 
@@ -42,7 +50,7 @@ function verifyJWTEdge(token: string): { username: string; role: string; name: s
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { method, headers, nextUrl } = request;
   const pathname = nextUrl.pathname;
 
@@ -68,7 +76,9 @@ export function middleware(request: NextRequest) {
       }
     }
 
-    if (!token || !verifyJWTEdge(token)) {
+    const user = token ? await verifyJWTEdge(token) : null;
+
+    if (!user) {
       // For API routes under /api/admin/*, return 401 JSON
       if (pathname.startsWith('/api/admin')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

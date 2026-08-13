@@ -8,25 +8,43 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   const dbUrl = process.env.DATABASE_URL || ''
-  const directUrl = process.env.DIRECT_DATABASE_URL || dbUrl
+  const authToken = process.env.TURSO_AUTH_TOKEN || undefined
 
-  // For Turso: use the direct URL for writes
+  if (!dbUrl) {
+    throw new Error('DATABASE_URL environment variable is not set')
+  }
+
   const libsql = createClient({
-    url: directUrl || dbUrl,
-    authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+    url: dbUrl,
+    authToken,
   })
 
-  // PrismaLibSQL adapter - type cast needed for newer prisma version compatibility
   const adapter = new PrismaLibSQL(libsql as any)
-  return new PrismaClient({
-    adapter: adapter as any,
-    log: ['error'],
-    // Explicitly override the datasource URL from schema's env() to prevent
-    // Prisma from reading a stale/undefined value when using an adapter
-    datasources: { db: { url: directUrl || dbUrl } },
-  })
+  return new PrismaClient({ adapter: adapter as any, log: ['error'] })
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient()
+function getDb() {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient()
+  }
+  return globalForPrisma.prisma
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+// Lazy proxy: defers PrismaClient creation until first actual DB operation.
+// Prevents build-time connection attempts when DATABASE_URL is unavailable.
+export const db = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    // Prevents Promise resolution issues with Proxy objects
+    if (prop === 'then') return undefined
+    if (prop === 'toJSON') return undefined
+
+    const instance = getDb()
+    const value = Reflect.get(instance, prop, instance)
+
+    // Bind methods to the real PrismaClient instance
+    if (typeof value === 'function') {
+      return value.bind(instance)
+    }
+    return value
+  },
+})
