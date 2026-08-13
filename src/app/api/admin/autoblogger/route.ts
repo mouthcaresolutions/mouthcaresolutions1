@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 import { validateSession } from '@/lib/auth';
 import { autoShareNewPost } from '@/lib/social-poster';
 import { fetchBlogImage, prependImageToContent } from '@/lib/fetch-blog-image';
@@ -247,11 +247,8 @@ export async function GET(request: NextRequest) {
     if (!token || !(await validateSession(token))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const config = await db.autoBloggerConfig.findFirst();
-    const logs = await db.autoBloggerLog.findMany({
-      orderBy: { ranAt: 'desc' },
-      take: 20,
-    });
+    const config = await blogDb.getAutoBloggerConfig();
+    const logs = await blogDb.getAutoBloggerLogs(20);
 
     return NextResponse.json({ config, logs, treatments: ALL_TREATMENTS.map(t => t.name) });
   } catch (error) {
@@ -272,17 +269,16 @@ export async function POST(request: NextRequest) {
 
     // Update config
     if (action === 'updateConfig') {
-      const config = await db.autoBloggerConfig.findFirst();
+      const config = await blogDb.getAutoBloggerConfig();
       if (!config) return NextResponse.json({ error: 'No config found' }, { status: 404 });
       
-      const updated = await db.autoBloggerConfig.update({
-        where: { id: config.id },
-        data: {
-          enabled: body.enabled ?? config.enabled,
-          postsPerDay: body.postsPerDay ?? config.postsPerDay,
-          categories: body.categories ?? config.categories,
-        },
-      });
+      const updateData: Record<string, any> = {
+        enabled: body.enabled ?? config.enabled,
+        postsPerDay: body.postsPerDay ?? config.postsPerDay,
+        categories: body.categories ?? config.categories,
+      };
+      await blogDb.updateAutoBloggerConfig(String(config.id), updateData);
+      const updated = await blogDb.getAutoBloggerConfig();
       return NextResponse.json({ config: updated, success: true });
     }
 
@@ -296,12 +292,9 @@ export async function POST(request: NextRequest) {
       let errorMsg: string | null = null;
 
       // Update status to running
-      const config = await db.autoBloggerConfig.findFirst();
+      const config = await blogDb.getAutoBloggerConfig();
       if (config) {
-        await db.autoBloggerConfig.update({
-          where: { id: config.id },
-          data: { status: 'running', lastRunAt: new Date() },
-        });
+        await blogDb.setConfigStatus(String(config.id), 'running');
       }
 
       const enabledCategories = config?.categories?.split(',').map(c => c.trim()).filter(Boolean) || 
@@ -330,20 +323,18 @@ export async function POST(request: NextRequest) {
               console.error('Image fetch failed for:', title, imgErr);
             }
 
-            const newPost = await db.blogPost.create({
-              data: {
-                slug,
-                title,
-                content: contentWithImage,
-                excerpt: result.excerpt,
-                metaDesc: result.metaDesc,
-                metaTitle: title,
-                category,
-                keywords: treatment.keywords.join(', '),
-                status: publishDirectly ? 'published' : 'draft',
-                author: 'Mouth Care Solutions',
-                scheduledAt: new Date(),
-              },
+            const newPost = await blogDb.createBlogPost({
+              slug,
+              title,
+              content: contentWithImage,
+              excerpt: result.excerpt,
+              metaDesc: result.metaDesc,
+              metaTitle: title,
+              category,
+              keywords: treatment.keywords.join(', '),
+              status: publishDirectly ? 'published' : 'draft',
+              author: 'Mouth Care Solutions',
+              scheduledAt: new Date().toISOString(),
             });
             postsCreated++;
 
@@ -369,26 +360,18 @@ export async function POST(request: NextRequest) {
 
       // Update status
       if (config) {
-        await db.autoBloggerConfig.update({
-          where: { id: config.id },
-          data: {
-            status: 'idle',
-            totalGenerated: { increment: postsCreated },
-            failedCount: { increment: postsFailed },
-            nextRunAt: new Date(Date.now() + (24 * 60 * 60 * 1000) / (config.postsPerDay || 3) * (count || 3)),
-          },
-        });
+        const nextRunAt = new Date(Date.now() + (24 * 60 * 60 * 1000) / (Number(config.postsPerDay) || 3) * (count || 3));
+        await blogDb.incrementConfigStats(String(config.id), postsCreated, postsFailed, nextRunAt.toISOString());
+        await blogDb.setConfigStatus(String(config.id), 'idle');
       }
 
       // Log the run
-      await db.autoBloggerLog.create({
-        data: {
-          status: postsCreated > 0 ? 'success' : 'failed',
-          postsCreated,
-          postsFailed,
-          error: errorMsg,
-          duration: Math.round((Date.now() - startTime) / 1000),
-        },
+      await blogDb.createAutoBloggerLog({
+        status: postsCreated > 0 ? 'success' : 'failed',
+        postsCreated,
+        postsFailed,
+        error: errorMsg,
+        duration: Math.round((Date.now() - startTime) / 1000),
       });
 
       return NextResponse.json({ 
@@ -424,20 +407,18 @@ export async function POST(request: NextRequest) {
           const result = await generateArticle(uniqueTitle, treatment.name, treatment.keywords, category);
           if (result) {
             const slug = uniqueTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 80) + '-' + Date.now().toString(36) + i;
-            await db.blogPost.create({
-              data: {
-                slug,
-                title: uniqueTitle,
-                content: result.content,
-                excerpt: result.excerpt,
-                metaDesc: result.metaDesc,
-                metaTitle: uniqueTitle,
-                category,
-                keywords: treatment.keywords.join(', '),
-                status: 'draft', // Always draft for bulk - requires review
-                author: 'Mouth Care Solutions',
-                scheduledAt: new Date(Date.now() + i * 3600000),
-              },
+            await blogDb.createBlogPost({
+              slug,
+              title: uniqueTitle,
+              content: result.content,
+              excerpt: result.excerpt,
+              metaDesc: result.metaDesc,
+              metaTitle: uniqueTitle,
+              category,
+              keywords: treatment.keywords.join(', '),
+              status: 'draft', // Always draft for bulk - requires review
+              author: 'Mouth Care Solutions',
+              scheduledAt: new Date(Date.now() + i * 3600000).toISOString(),
             });
             postsCreated++;
           } else {
@@ -450,13 +431,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      await db.autoBloggerLog.create({
-        data: {
-          status: postsCreated > 0 ? 'success' : 'failed',
-          postsCreated,
-          postsFailed,
-          duration: Math.round((Date.now() - startTime) / 1000),
-        },
+      await blogDb.createAutoBloggerLog({
+        status: postsCreated > 0 ? 'success' : 'failed',
+        postsCreated,
+        postsFailed,
+        duration: Math.round((Date.now() - startTime) / 1000),
       });
 
       return NextResponse.json({

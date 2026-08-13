@@ -2,7 +2,7 @@
 // Uses CRON_SECRET for authentication
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 import { autoShareNewPost } from '@/lib/social-poster';
 
 const TREATMENTS = [
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Config & admin setup already done via setup scripts
-    const config = await db.autoBloggerConfig.findFirst();
+    const config = await blogDb.getAutoBloggerConfig();
     if (!config || !config.enabled) {
       return NextResponse.json({ message: 'Auto-blogger disabled' });
     }
@@ -110,37 +110,27 @@ STRUCTURE: Use H2/H3 headings. Include: What is ${treatment.name}, why it's impo
     const excerpt = firstParagraph.substring(0, 300).trim();
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
 
-    const newPost = await db.blogPost.create({
-      data: {
-        slug,
-        title,
-        content,
-        excerpt,
-        metaDesc: excerpt.substring(0, 160),
-        metaTitle: title,
-        category,
-        keywords: treatment.keywords.join(', '),
-        status: 'draft',  // AI content goes to draft for human review
-        author: 'Mouth Care Solutions',
-        scheduledAt: new Date(),
-      },
+    const newPost = await blogDb.createBlogPost({
+      slug,
+      title,
+      content,
+      excerpt,
+      metaDesc: excerpt.substring(0, 160),
+      metaTitle: title,
+      category,
+      keywords: treatment.keywords.join(', '),
+      status: 'draft',  // AI content goes to draft for human review
+      author: 'Mouth Care Solutions',
+      scheduledAt: new Date().toISOString(),
     });
 
     // Update config stats
-    await db.autoBloggerConfig.update({
-      where: { id: config.id },
-      data: {
-        totalGenerated: { increment: 1 },
-        lastRunAt: new Date(),
-        nextRunAt: new Date(Date.now() + (24 * 60 * 60 * 1000) / (config.postsPerDay || 3)),
-        status: 'idle',
-      },
-    });
+    const nextRunAt = new Date(Date.now() + (24 * 60 * 60 * 1000) / (Number(config.postsPerDay) || 3));
+    await blogDb.incrementConfigStats(String(config.id), 1, 0, nextRunAt.toISOString());
+    await blogDb.setConfigStatus(String(config.id), 'idle');
 
     // Log
-    await db.autoBloggerLog.create({
-      data: { status: 'success', postsCreated: 1, postsFailed: 0, duration: 0 },
-    });
+    await blogDb.createAutoBloggerLog({ status: 'success', postsCreated: 1, postsFailed: 0, duration: 0 });
 
     // Auto-share to social media
     try {
