@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ config, logs, treatments: ALL_TREATMENTS.map(t => t.name) });
   } catch (error) {
     console.error('Autoblogger GET error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed', detail: (error as any)?.message || String(error) }, { status: 500 });
   }
 }
 
@@ -471,6 +471,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Autoblogger POST error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed', detail: (error as any)?.message || String(error) }, { status: 500 });
   }
 }
