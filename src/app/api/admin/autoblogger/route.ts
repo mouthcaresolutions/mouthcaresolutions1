@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
         await blogDb.setConfigStatus(String(config.id), 'running');
       }
 
-      const enabledCategories = config?.categories?.split(',').map(c => c.trim()).filter(Boolean) || 
+      const enabledCategories = String(config?.categories || '').split(',').map(c => c.trim()).filter(Boolean) || 
         ['General Dentistry', 'Cosmetic Dentistry', 'Oral Hygiene'];
 
       for (let i = 0; i < count; i++) {
