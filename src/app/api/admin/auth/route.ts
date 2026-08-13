@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { db } from '@/lib/db';
-import { verifyPassword, createSession, validateSession, destroySession, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from '@/lib/auth';
+import { verifyPassword, hashPassword, createSession, validateSession, destroySession, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from '@/lib/auth';
 import { z } from 'zod';
+
+// Legacy SHA-256 verification (for migration from old hash format)
+function verifyLegacySHA256(password: string, hash: string): boolean {
+  try {
+    const computed = crypto.createHash('sha256').update(password).digest('hex');
+    return computed === hash;
+  } catch {
+    return false;
+  }
+}
+
+function isBcryptHash(hash: string): boolean {
+  return hash.startsWith('$2');
+}
 
 const loginSchema = z.object({
   action: z.literal('login'),
@@ -48,7 +63,25 @@ export async function POST(request: NextRequest) {
         recordFailedLogin(identifier);
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
-      if (!verifyPassword(password, user.passwordHash)) {
+
+      let passwordValid = false;
+
+      // Check if stored hash is bcrypt format
+      if (isBcryptHash(user.passwordHash)) {
+        passwordValid = verifyPassword(password, user.passwordHash);
+      } else {
+        // Legacy SHA-256 hash — verify and auto-migrate to bcrypt
+        passwordValid = verifyLegacySHA256(password, user.passwordHash);
+        if (passwordValid) {
+          console.log(`Migrating password hash for user '${username}' from SHA-256 to bcrypt`);
+          await db.adminUser.update({
+            where: { username },
+            data: { passwordHash: hashPassword(password) },
+          });
+        }
+      }
+
+      if (!passwordValid) {
         recordFailedLogin(identifier);
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
