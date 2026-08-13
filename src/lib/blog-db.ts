@@ -43,7 +43,7 @@ export async function createAutoBloggerLog(data: {
   const db = getBlogDb();
   const id = 'log_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
   await db.execute({
-    sql: 'INSERT INTO AutoBloggerLog (id, status, "postsCreated", "postsFailed", error, duration, "ranAt") VALUES (?, ?, ?, ?, ?, ?, datetime("now"))',
+    sql: 'INSERT INTO AutoBloggerLog (id, status, "postsCreated", "postsFailed", error, duration, "ranAt") VALUES (?, ?, ?, ?, ?, ?, datetime('now'))',
     args: [id, data.status, data.postsCreated, data.postsFailed, data.error || null, data.duration],
   });
 }
@@ -64,7 +64,7 @@ export async function createBlogPost(data: {
   const db = getBlogDb();
   const id = 'bp_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
   await db.execute({
-    sql: 'INSERT INTO BlogPost (id, slug, title, content, excerpt, "metaDesc", "metaTitle", category, keywords, status, author, "scheduledAt", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+    sql: 'INSERT INTO BlogPost (id, slug, title, content, excerpt, "metaDesc", "metaTitle", category, keywords, status, author, "scheduledAt", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))',
     args: [
       id,
       data.slug,
@@ -86,7 +86,7 @@ export async function createBlogPost(data: {
 export async function incrementConfigStats(id: string, generated: number, failed: number, nextRunAt: string) {
   const db = getBlogDb();
   await db.execute({
-    sql: 'UPDATE AutoBloggerConfig SET "totalGenerated" = "totalGenerated" + ?, "failedCount" = "failedCount" + ?, "lastRunAt" = datetime("now"), "nextRunAt" = ?, "updatedAt" = datetime("now") WHERE id = ?',
+    sql: 'UPDATE AutoBloggerConfig SET "totalGenerated" = "totalGenerated" + ?, "failedCount" = "failedCount" + ?, "lastRunAt" = datetime('now'), "nextRunAt" = ?, "updatedAt" = datetime('now') WHERE id = ?',
     args: [generated, failed, nextRunAt, id],
   });
 }
@@ -95,12 +95,12 @@ export async function setConfigStatus(id: string, status: string) {
   const db = getBlogDb();
   if (status === 'running') {
     await db.execute({
-      sql: 'UPDATE AutoBloggerConfig SET status = ?, "lastRunAt" = datetime("now"), "updatedAt" = datetime("now") WHERE id = ?',
+      sql: 'UPDATE AutoBloggerConfig SET status = ?, "lastRunAt" = datetime('now'), "updatedAt" = datetime('now') WHERE id = ?',
       args: [status, id],
     });
   } else {
     await db.execute({
-      sql: 'UPDATE AutoBloggerConfig SET status = ?, "updatedAt" = datetime("now") WHERE id = ?',
+      sql: 'UPDATE AutoBloggerConfig SET status = ?, "updatedAt" = datetime('now') WHERE id = ?',
       args: [status, id],
     });
   }
