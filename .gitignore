@@ -70,4 +70,4 @@ download/
 Caddyfile
 examples/
 tests/
-bun.lock
+bun.lock.env

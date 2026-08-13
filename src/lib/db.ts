@@ -10,19 +10,23 @@ function createPrismaClient() {
   const dbUrl = process.env.DATABASE_URL || ''
   const authToken = process.env.TURSO_AUTH_TOKEN || undefined
 
-  if (!dbUrl || dbUrl === 'undefined') {
-    process.env.DATABASE_URL = 'file:./dummy.db'
-  }
-
-  const realUrl = dbUrl || process.env.DATABASE_URL || ''
+  // Ensure we have a valid URL for the libsql client
+  const realUrl = dbUrl && dbUrl !== 'undefined' && !dbUrl.startsWith('file:')
+    ? dbUrl
+    : 'file:./dummy.db'
 
   const libsql = createClient({
     url: realUrl,
-    authToken,
+    authToken: realUrl.startsWith('file:') ? undefined : authToken,
   })
 
   const adapter = new PrismaLibSQL(libsql as any)
-  return new PrismaClient({ adapter: adapter as any, log: ['error'] })
+  return new PrismaClient({
+    adapter: adapter as any,
+    log: ['error'],
+    // Explicitly override datasource URL to prevent Prisma from reading env var as 'undefined'
+    datasources: { db: { url: 'file:./dummy.db' } },
+  })
 }
 
 function getDb() {
