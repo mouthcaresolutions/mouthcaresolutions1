@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { validateSession } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
+import { createPaymentSchema, updatePaymentSchema, validateBody } from '@/lib/validation';
 
 // GET: List payments with filters
 export async function GET(request: NextRequest) {
@@ -100,19 +101,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.patientId || !body.date || body.amount === undefined) {
-      return NextResponse.json(
-        { error: 'patientId, date, and amount are required' },
-        { status: 400 }
-      );
+    const parsed = validateBody(createPaymentSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     // Verify patient exists
     const patientResult = await crm.execute({
       sql: 'SELECT id, firstName, lastName FROM Patient WHERE id = ?',
-      args: [body.patientId],
+      args: [v.patientId],
     });
     if (patientResult.rows.length === 0) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
@@ -157,8 +156,8 @@ export async function POST(request: NextRequest) {
     const invoiceNumber = `${invPrefix}${String(nextInvNum).padStart(4, '0')}`;
 
     const id = 'pay_' + crypto.randomBytes(12).toString('hex');
-    const amount = body.amount || 0;
-    const paidAmount = body.paidAmount || 0;
+    const amount = v.amount;
+    const paidAmount = v.paidAmount ?? 0;
     const balanceAmount = amount - paidAmount;
 
     let status = 'pending';
@@ -177,19 +176,19 @@ export async function POST(request: NextRequest) {
       args: [
         id,
         paymentId,
-        body.patientId,
+        v.patientId,
         patientName,
-        body.visitId || null,
+        v.visitId ?? null,
         invoiceNumber,
         amount,
         paidAmount,
         balanceAmount,
-        body.paymentMethod || null,
+        v.paymentMethod ?? null,
         status,
-        body.date,
-        body.dueDate || null,
-        body.items || null,
-        body.notes || null,
+        v.date,
+        v.dueDate ?? null,
+        v.items ?? null,
+        v.notes ?? null,
       ],
     });
 
@@ -220,15 +219,16 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.id) {
-      return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
+    const parsed = validateBody(updatePaymentSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     const existing = await crm.execute({
       sql: 'SELECT * FROM Payment WHERE id = ?',
-      args: [body.id],
+      args: [v.id],
     });
     if (existing.rows.length === 0) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
@@ -239,18 +239,18 @@ export async function PUT(request: NextRequest) {
     let amount = (current.amount as number) || 0;
 
     // If markAsPaid is true, set paidAmount to amount
-    if (body.markAsPaid) {
+    if (v.markAsPaid) {
       paidAmount = amount;
     }
 
     // If addPayment is provided, add to paidAmount
-    if (body.addPayment !== undefined && body.addPayment > 0) {
-      paidAmount = Math.min(paidAmount + body.addPayment, amount);
+    if (v.addPayment !== undefined && v.addPayment > 0) {
+      paidAmount = Math.min(paidAmount + v.addPayment, amount);
     }
 
     // Allow direct update of paidAmount
-    if (body.paidAmount !== undefined && !body.markAsPaid && body.addPayment === undefined) {
-      paidAmount = body.paidAmount;
+    if (v.paidAmount !== undefined && !v.markAsPaid && v.addPayment === undefined) {
+      paidAmount = v.paidAmount;
     }
 
     const balanceAmount = amount - paidAmount;
@@ -272,27 +272,27 @@ export async function PUT(request: NextRequest) {
     args.push(status);
     setClauses.push('updatedAt = CURRENT_TIMESTAMP');
 
-    if (body.paymentMethod !== undefined) {
+    if (v.paymentMethod !== undefined) {
       setClauses.push('paymentMethod = ?');
-      args.push(body.paymentMethod || null);
+      args.push(v.paymentMethod || null);
     }
 
-    if (body.notes !== undefined) {
+    if (v.notes !== undefined) {
       setClauses.push('notes = ?');
-      args.push(body.notes || null);
+      args.push(v.notes || null);
     }
 
-    if (body.dueDate !== undefined) {
+    if (v.dueDate !== undefined) {
       setClauses.push('dueDate = ?');
-      args.push(body.dueDate || null);
+      args.push(v.dueDate || null);
     }
 
-    if (body.items !== undefined) {
+    if (v.items !== undefined) {
       setClauses.push('items = ?');
-      args.push(body.items || null);
+      args.push(v.items || null);
     }
 
-    args.push(body.id);
+    args.push(v.id);
     await crm.execute({
       sql: `UPDATE Payment SET ${setClauses.join(', ')} WHERE id = ?`,
       args,
@@ -304,7 +304,7 @@ export async function PUT(request: NextRequest) {
         SELECT COALESCE(SUM(balanceAmount), 0) FROM Payment WHERE patientId = Patient.id AND status IN ('pending', 'partial')
       ), updatedAt = CURRENT_TIMESTAMP
       WHERE id = (SELECT patientId FROM Payment WHERE id = ?)`,
-      args: [body.id],
+      args: [v.id],
     });
 
     return NextResponse.json({

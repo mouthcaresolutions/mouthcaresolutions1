@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { validateSession } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
+import { createAppointmentSchema, updateAppointmentSchema, validateBody } from '@/lib/validation';
 
 // GET: List appointments with date, doctor, status filters
 export async function GET(request: NextRequest) {
@@ -109,19 +110,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.patientId || !body.date || !body.time) {
-      return NextResponse.json(
-        { error: 'patientId, date, and time are required' },
-        { status: 400 }
-      );
+    const parsed = validateBody(createAppointmentSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     // Verify patient exists
     const patientResult = await crm.execute({
       sql: 'SELECT id, firstName, lastName FROM Patient WHERE id = ?',
-      args: [body.patientId],
+      args: [v.patientId],
     });
     if (patientResult.rows.length === 0) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
@@ -149,11 +148,11 @@ export async function POST(request: NextRequest) {
     const id = 'apt_' + crypto.randomBytes(12).toString('hex');
 
     // Get doctor name if doctorId provided
-    let doctorName = body.doctorName || null;
-    if (body.doctorId && !doctorName) {
+    let doctorName = v.doctorName ?? null;
+    if (v.doctorId && !doctorName) {
       const docResult = await crm.execute({
         sql: 'SELECT name FROM CRMDoctor WHERE id = ?',
-        args: [body.doctorId],
+        args: [v.doctorId],
       });
       if (docResult.rows.length > 0) {
         doctorName = docResult.rows[0].name as string;
@@ -168,18 +167,18 @@ export async function POST(request: NextRequest) {
       args: [
         id,
         appointmentId,
-        body.patientId,
+        v.patientId,
         patientName,
-        body.doctorId || null,
+        v.doctorId ?? null,
         doctorName,
-        body.date,
-        body.time,
-        body.endTime || null,
-        body.duration || 30,
-        body.status || 'scheduled',
-        body.treatmentType || null,
-        body.reason || null,
-        body.notes || null,
+        v.date,
+        v.time,
+        v.endTime ?? null,
+        v.duration ?? 30,
+        'scheduled',
+        v.treatmentType ?? null,
+        v.reason ?? null,
+        v.notes ?? null,
       ],
     });
 
@@ -208,15 +207,16 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.id) {
-      return NextResponse.json({ error: 'Appointment ID is required' }, { status: 400 });
+    const parsed = validateBody(updateAppointmentSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     const existing = await crm.execute({
       sql: 'SELECT id FROM Appointment WHERE id = ?',
-      args: [body.id],
+      args: [v.id],
     });
     if (existing.rows.length === 0) {
       return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
@@ -231,9 +231,10 @@ export async function PUT(request: NextRequest) {
     const args: (string | number | null)[] = [];
 
     for (const field of updatableFields) {
-      if (body[field] !== undefined) {
+      const val = (v as Record<string, unknown>)[field] as string | number | null | undefined;
+      if (val !== undefined) {
         setClauses.push(`${field} = ?`);
-        args.push(body[field] === '' ? null : body[field]);
+        args.push(val === '' ? null : val);
       }
     }
 
@@ -241,7 +242,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    args.push(body.id);
+    args.push(v.id);
     await crm.execute({
       sql: `UPDATE Appointment SET ${setClauses.join(', ')} WHERE id = ?`,
       args,

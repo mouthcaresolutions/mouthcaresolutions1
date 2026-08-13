@@ -100,10 +100,24 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, ...data } = body;
+    const { id } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Post ID required' }, { status: 400 });
+    }
+
+    // Whitelist allowed fields to prevent mass assignment
+    const allowedFields = ['title', 'content', 'excerpt', 'category', 'keywords', 'metaTitle', 'metaDesc', 'status', 'scheduledAt'] as const;
+    const data: Record<string, unknown> = {};
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        data[field] = body[field];
+      }
+    }
+
+    // Convert scheduledAt to Date if provided
+    if (data.scheduledAt) {
+      data.scheduledAt = new Date(data.scheduledAt as string);
     }
 
     const post = await db.blogPost.update({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { validateSession } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
+import { createPatientSchema, updatePatientSchema, validateBody } from '@/lib/validation';
 
 // GET: List patients with search, filter, pagination
 export async function GET(request: NextRequest) {
@@ -112,6 +113,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const parsed = validateBody(createPatientSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const v = parsed.data;
     const crm = getCRM();
 
     // Generate sequential patientId: MCS-YYYY-NNN
@@ -150,32 +156,32 @@ export async function POST(request: NextRequest) {
       args: [
         id,
         patientId,
-        body.firstName || '',
-        body.lastName || null,
-        body.phone || '',
-        body.phone2 || null,
-        body.email || null,
-        body.dateOfBirth || null,
-        body.age || null,
-        body.gender || null,
-        body.bloodGroup || null,
-        body.address || null,
-        body.city || 'Vijayawada',
-        body.state || 'Andhra Pradesh',
-        body.pincode || null,
-        body.occupation || null,
-        body.referredBy || null,
-        body.medicalHistory || null,
-        body.dentalHistory || null,
-        body.allergies || null,
-        body.currentMedications || null,
-        body.emergencyContactName || null,
-        body.emergencyContactPhone || null,
-        body.insuranceProvider || null,
-        body.insuranceNumber || null,
-        body.category || 'New',
-        body.photo || null,
-        body.notes || null,
+        v.firstName,
+        v.lastName ?? null,
+        v.phone,
+        v.phone2 ?? null,
+        v.email ?? null,
+        v.dateOfBirth ?? null,
+        v.age ?? null,
+        v.gender ?? null,
+        v.bloodGroup ?? null,
+        v.address ?? null,
+        v.city ?? 'Vijayawada',
+        v.state ?? 'Andhra Pradesh',
+        v.pincode ?? null,
+        v.occupation ?? null,
+        v.referredBy ?? null,
+        v.medicalHistory ?? null,
+        v.dentalHistory ?? null,
+        v.allergies ?? null,
+        v.currentMedications ?? null,
+        v.emergencyContactName ?? null,
+        v.emergencyContactPhone ?? null,
+        null, // insuranceProvider
+        null, // insuranceNumber
+        v.category ?? 'New',
+        null, // photo
+        v.notes ?? null,
         0,
         0,
         0,
@@ -203,16 +209,17 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.id) {
-      return NextResponse.json({ error: 'Patient ID is required' }, { status: 400 });
+    const parsed = validateBody(updatePatientSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     // Check patient exists
     const existing = await crm.execute({
       sql: 'SELECT id FROM Patient WHERE id = ?',
-      args: [body.id],
+      args: [v.id],
     });
     if (existing.rows.length === 0) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
@@ -230,9 +237,10 @@ export async function PUT(request: NextRequest) {
     const args: (string | number | null)[] = [];
 
     for (const field of updatableFields) {
-      if (body[field] !== undefined) {
+      const val = (v as Record<string, unknown>)[field] as string | number | null | undefined;
+      if (val !== undefined) {
         setClauses.push(`${field} = ?`);
-        args.push(body[field] === '' ? null : body[field]);
+        args.push(val === '' ? null : val);
       }
     }
 
@@ -240,7 +248,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    args.push(body.id);
+    args.push(v.id);
     await crm.execute({
       sql: `UPDATE Patient SET ${setClauses.join(', ')} WHERE id = ?`,
       args,

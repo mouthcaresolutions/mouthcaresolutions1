@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { validateSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { getCRM } from '@/lib/crm-db';
+import { createDoctorSchema, updateDoctorSchema, validateBody } from '@/lib/validation';
 
 // Helper: check if user is admin
 async function isAdmin(token: string): Promise<boolean> {
@@ -62,11 +63,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.name) {
-      return NextResponse.json({ error: 'Doctor name is required' }, { status: 400 });
+    const parsed = validateBody(createDoctorSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     const id = 'doc_' + crypto.randomBytes(12).toString('hex');
 
@@ -77,20 +79,20 @@ export async function POST(request: NextRequest) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
-        body.name,
-        body.specialization || null,
-        body.phone || null,
-        body.email || null,
-        body.availableDays || 'Mon,Tue,Wed,Thu,Fri,Sat',
-        body.startTime || '10:00',
-        body.endTime || '20:00',
-        body.slotDuration || 30,
-        body.active !== undefined ? (body.active ? 1 : 0) : 1,
+        v.name,
+        v.specialization ?? null,
+        v.phone ?? null,
+        v.email ?? null,
+        v.availableDays ?? 'Mon,Tue,Wed,Thu,Fri,Sat',
+        v.startTime ?? '10:00',
+        v.endTime ?? '20:00',
+        v.slotDuration ?? 30,
+        v.active !== undefined ? (v.active ? 1 : 0) : 1,
       ],
     });
 
     return NextResponse.json(
-      { success: true, id, name: body.name, message: 'Doctor added successfully' },
+      { success: true, id, name: v.name, message: 'Doctor added successfully' },
       { status: 201 }
     );
   } catch (error) {
@@ -108,15 +110,16 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.id) {
-      return NextResponse.json({ error: 'Doctor ID is required' }, { status: 400 });
+    const parsed = validateBody(updateDoctorSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     const existing = await crm.execute({
       sql: 'SELECT id FROM CRMDoctor WHERE id = ?',
-      args: [body.id],
+      args: [v.id],
     });
     if (existing.rows.length === 0) {
       return NextResponse.json({ error: 'Doctor not found' }, { status: 404 });
@@ -131,12 +134,13 @@ export async function PUT(request: NextRequest) {
     const args: (string | number | null)[] = [];
 
     for (const field of updatableFields) {
-      if (body[field] !== undefined) {
+      const val = (v as Record<string, unknown>)[field] as string | number | null | undefined;
+      if (val !== undefined) {
         setClauses.push(`${field} = ?`);
         if (field === 'active') {
-          args.push(body[field] ? 1 : 0);
+          args.push(val ? 1 : 0);
         } else {
-          args.push(body[field] === '' ? null : body[field]);
+          args.push(val === '' ? null : val);
         }
       }
     }
@@ -145,7 +149,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    args.push(body.id);
+    args.push(v.id);
     await crm.execute({
       sql: `UPDATE CRMDoctor SET ${setClauses.join(', ')} WHERE id = ?`,
       args,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { validateSession } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
+import { createVisitSchema, validateBody } from '@/lib/validation';
 
 // GET: List visits with patient filter, date filter
 export async function GET(request: NextRequest) {
@@ -101,19 +102,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const crm = getCRM();
-
-    if (!body.patientId || !body.date) {
-      return NextResponse.json(
-        { error: 'patientId and date are required' },
-        { status: 400 }
-      );
+    const parsed = validateBody(createVisitSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const v = parsed.data;
+    const crm = getCRM();
 
     // Verify patient exists
     const patientResult = await crm.execute({
       sql: 'SELECT id, firstName, lastName FROM Patient WHERE id = ?',
-      args: [body.patientId],
+      args: [v.patientId],
     });
     if (patientResult.rows.length === 0) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
@@ -141,19 +140,19 @@ export async function POST(request: NextRequest) {
     const id = 'vis_' + crypto.randomBytes(12).toString('hex');
 
     // Get doctor name if doctorId provided
-    let doctorName = body.doctorName || null;
-    if (body.doctorId && !doctorName) {
+    let doctorName = v.doctorName ?? null;
+    if (v.doctorId && !doctorName) {
       const docResult = await crm.execute({
         sql: 'SELECT name FROM CRMDoctor WHERE id = ?',
-        args: [body.doctorId],
+        args: [v.doctorId],
       });
       if (docResult.rows.length > 0) {
         doctorName = docResult.rows[0].name as string;
       }
     }
 
-    const totalAmount = body.totalAmount || 0;
-    const discount = body.discount || 0;
+    const totalAmount = v.totalAmount ?? 0;
+    const discount = v.discount ?? 0;
 
     // Insert visit
     await crm.execute({
@@ -165,18 +164,18 @@ export async function POST(request: NextRequest) {
       args: [
         id,
         visitId,
-        body.patientId,
+        v.patientId,
         patientName,
-        body.doctorId || null,
+        v.doctorId ?? null,
         doctorName,
-        body.appointmentId || null,
-        body.date,
-        body.chiefComplaint || null,
-        body.diagnosis || null,
-        body.treatmentDone || null,
-        body.prescription || null,
-        body.notes || null,
-        body.followUpDate || null,
+        v.appointmentId ?? null,
+        v.date,
+        v.chiefComplaint ?? null,
+        v.diagnosis ?? null,
+        v.treatmentDone ?? null,
+        v.prescription ?? null,
+        v.notes ?? null,
+        v.followUpDate ?? null,
         totalAmount,
         discount,
       ],
@@ -191,14 +190,14 @@ export async function POST(request: NextRequest) {
         lastVisitDate = ?,
         updatedAt = CURRENT_TIMESTAMP
       WHERE id = ?`,
-      args: [netAmount, body.date, body.patientId],
+      args: [netAmount, v.date, v.patientId],
     });
 
     // Update appointment status to completed if appointmentId is provided
-    if (body.appointmentId) {
+    if (v.appointmentId) {
       await crm.execute({
         sql: "UPDATE Appointment SET status = 'completed', updatedAt = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [body.appointmentId],
+        args: [v.appointmentId],
       });
     }
 
