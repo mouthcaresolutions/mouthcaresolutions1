@@ -1,5 +1,4 @@
 import { MetadataRoute } from 'next';
-import { db } from '@/lib/db';
 
 // Force dynamic rendering — sitemap needs live blog data
 export const dynamic = 'force-dynamic';
@@ -16,8 +15,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
   ];
 
-  // Try to fetch blog posts for sitemap, gracefully degrade if DB unavailable
+  // Dynamic import — avoids loading db module at build time
   try {
+    const { db } = await import('@/lib/db');
     const posts = await db.blogPost.findMany({
       where: { status: 'published' },
       select: { slug: true, scheduledAt: true, updatedAt: true },
@@ -33,7 +33,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [...staticPages, ...blogPages];
   } catch {
-    // Database unavailable during build — return static pages only
     return staticPages;
   }
 }
