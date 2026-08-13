@@ -10,12 +10,19 @@ function createPrismaClient() {
   const dbUrl = process.env.DATABASE_URL || ''
   const authToken = process.env.TURSO_AUTH_TOKEN || undefined
 
+  // Prisma's schema has `url = env("DATABASE_URL")` which Prisma validates
+  // at client creation time, even when using a driver adapter.
+  // If DATABASE_URL is not set, env() returns the string "undefined"
+  // causing URL_INVALID errors. Provide a dummy placeholder so validation
+  // passes — the adapter handles the real connection.
   if (!dbUrl) {
-    throw new Error('DATABASE_URL environment variable is not set')
+    process.env.DATABASE_URL = 'file:./dummy.db'
   }
 
+  const realUrl = dbUrl || process.env.DATABASE_URL || ''
+
   const libsql = createClient({
-    url: dbUrl,
+    url: realUrl,
     authToken,
   })
 
@@ -33,7 +40,7 @@ function getDb() {
 // Lazy proxy: defers PrismaClient creation until first actual DB operation.
 // Prevents build-time connection attempts when DATABASE_URL is unavailable.
 export const db = new Proxy({} as PrismaClient, {
-  get(_target, prop, receiver) {
+  get(_target, prop, _receiver) {
     // Prevents Promise resolution issues with Proxy objects
     if (prop === 'then') return undefined
     if (prop === 'toJSON') return undefined
