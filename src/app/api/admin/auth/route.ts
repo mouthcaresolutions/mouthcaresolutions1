@@ -145,8 +145,19 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Auth error:', error);
-    return NextResponse.json({ error: 'Auth failed' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    // Expose specific error for diagnosis without leaking secrets
+    if (msg.includes('DATABASE_URL')) {
+      return NextResponse.json({ error: 'Service misconfigured', code: 'NO_DB_URL' }, { status: 500 });
+    }
+    if (msg.includes('ECONNREFUSED') || msg.includes('LIBSQL') || msg.includes('database') || msg.includes('Database') || msg.includes('url')) {
+      return NextResponse.json({ error: 'Database connection failed', code: 'DB_CONN' }, { status: 500 });
+    }
+    if (msg.includes('JWT_SECRET')) {
+      return NextResponse.json({ error: 'Service misconfigured', code: 'NO_JWT' }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'Auth failed', code: 'UNKNOWN', detail: msg.substring(0, 120) }, { status: 500 });
   }
 }
