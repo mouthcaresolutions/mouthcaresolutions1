@@ -21,6 +21,9 @@ function createPrismaClient() {
   return new PrismaClient({
     adapter: adapter as any,
     log: ['error'],
+    // Explicitly override the datasource URL from schema's env() to prevent
+    // Prisma from reading a stale/undefined value when using an adapter
+    datasources: { db: { url: directUrl || dbUrl } },
   })
 }
 
