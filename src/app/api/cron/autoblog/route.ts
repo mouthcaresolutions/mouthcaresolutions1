@@ -108,9 +108,15 @@ export async function GET(request: NextRequest) {
     const title = generateTitle(treatment.name);
     const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
 
-    // z-ai-web-dev-sdk: exports ZAI class with create() factory
+    // z-ai-web-dev-sdk: Use constructor directly with env vars to bypass file-based config
     const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const zai = new ZAI({
+      baseUrl: process.env.ZAI_BASE_URL || 'https://internal-api.z.ai/v1',
+      apiKey: process.env.ZAI_API_KEY || 'Z.ai',
+      chatId: process.env.ZAI_CHAT_ID || '',
+      token: process.env.ZAI_TOKEN || '',
+      userId: process.env.ZAI_USER_ID || '',
+    });
     const prompt = `You are a professional dental content writer for Mouth Care Solutions, a leading dental clinic in Vijayawada, Andhra Pradesh, India. Write a comprehensive, SEO-optimized, long-form article (minimum 1500 words, ideally 2000+ words) in markdown format.
 
 TITLE: ${title}

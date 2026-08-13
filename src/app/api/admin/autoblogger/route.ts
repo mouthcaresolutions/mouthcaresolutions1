@@ -214,9 +214,17 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
-    // z-ai-web-dev-sdk: exports ZAI class with create() factory
+    // z-ai-web-dev-sdk: Use constructor directly with env vars to bypass file-based config
+    // which doesn't work on Vercel (process.cwd() points to build output, not project root)
     const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const config = {
+      baseUrl: process.env.ZAI_BASE_URL || 'https://internal-api.z.ai/v1',
+      apiKey: process.env.ZAI_API_KEY || 'Z.ai',
+      chatId: process.env.ZAI_CHAT_ID || '',
+      token: process.env.ZAI_TOKEN || '',
+      userId: process.env.ZAI_USER_ID || '',
+    };
+    const zai = new ZAI(config);
     const prompt = generatePrompt(title, treatment, keywords, category);
 
     const result = await (zai as any).createChatCompletion({
