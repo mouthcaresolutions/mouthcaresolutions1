@@ -3,7 +3,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { seedAdmin } from '@/lib/auth';
 import { autoShareNewPost } from '@/lib/social-poster';
 
 const TREATMENTS = [
@@ -68,9 +67,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Ensure admin & config exist
-    await seedAdmin();
-
+    // Config & admin setup already done via setup scripts
     const config = await db.autoBloggerConfig.findFirst();
     if (!config || !config.enabled) {
       return NextResponse.json({ message: 'Auto-blogger disabled' });

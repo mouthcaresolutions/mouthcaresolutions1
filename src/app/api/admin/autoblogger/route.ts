@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { validateSession, seedAdmin } from '@/lib/auth';
+import { validateSession } from '@/lib/auth';
 import { autoShareNewPost } from '@/lib/social-poster';
 import { fetchBlogImage, prependImageToContent } from '@/lib/fetch-blog-image';
 
@@ -266,7 +266,6 @@ export async function POST(request: NextRequest) {
     if (!token || !(await validateSession(token))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    await seedAdmin();
 
     const body = await request.json();
     const { action } = body;
