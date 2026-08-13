@@ -1,40 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { db } from '@/lib/db';
+import { createClient } from '@libsql/client';
 import { verifyPassword, hashPassword, createSession, validateSession, destroySession, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from '@/lib/auth';
 import { z } from 'zod';
-import { createClient } from '@libsql/client';
 
-// Direct libsql test for env var debugging
-async function testDirectLibsql() {
-  try {
-    const url = process.env.DATABASE_URL;
-    const token = process.env.TURSO_AUTH_TOKEN;
-    if (!url || url === 'undefined') {
-      return `DATABASE_URL not available. Value: ${JSON.stringify(url)}, typeof: ${typeof url}, all env keys with DB: ${Object.keys(process.env).filter(k => k.includes('DB') || k.includes('DATABASE')).join(',')}`;
-    }
-    const client = createClient({ url, authToken: token });
-    const result = await client.execute('SELECT 1 as ok');
-    return `Direct libsql OK: ${JSON.stringify(result.rows[0])}`;
-  } catch (e: any) {
-    return `Direct libsql FAIL: ${e.message || e}`;
-  }
+// Direct libsql connection — bypasses Prisma env() bug
+function getDb() {
+  const url = process.env.DATABASE_URL;
+  const token = process.env.TURSO_AUTH_TOKEN;
+  if (!url) throw new Error('DATABASE_URL not set');
+  return createClient({ url, authToken: token || undefined });
 }
 
 // Legacy SHA-256 verification (for migration from old hash format)
-// Old setup scripts used SHA-256(password:MCS@2024Secure) with a static salt
-// We try multiple legacy formats to handle all migration paths
 function verifyLegacySHA256(password: string, hash: string): boolean {
   try {
-    // Format 1: SHA-256 with salt (used by setup-turso.js and setup-crm-tables.js)
     const LEGACY_SALT = 'MCS@2024Secure';
     const salted = crypto.createHash('sha256').update(`${password}:${LEGACY_SALT}`).digest('hex');
     if (salted === hash) return true;
-
-    // Format 2: Plain SHA-256 without salt (fallback)
     const plain = crypto.createHash('sha256').update(password).digest('hex');
     if (plain === hash) return true;
-
     return false;
   } catch {
     return false;
@@ -67,14 +52,12 @@ export async function POST(request: NextRequest) {
     const { action } = body;
 
     if (action === 'login') {
-      // Validate input
       const parsed = loginSchema.safeParse(body);
       if (!parsed.success) {
         return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
       }
       const { username, password } = parsed.data;
 
-      // Rate limiting by IP + username combo
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
       const identifier = `${ip}:${username}`;
       const rateCheck = checkLoginRateLimit(identifier);
@@ -85,25 +68,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const user = await db.adminUser.findUnique({ where: { username } });
+      // Direct libsql query — bypasses Prisma entirely
+      const db = getDb();
+      const result = await db.execute({
+        sql: 'SELECT id, username, "passwordHash", name, role FROM AdminUser WHERE username = ?',
+        args: [username],
+      });
+      const user = result.rows[0];
+
       if (!user) {
         recordFailedLogin(identifier);
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
 
       let passwordValid = false;
-
-      // Check if stored hash is bcrypt format
       if (isBcryptHash(user.passwordHash)) {
         passwordValid = verifyPassword(password, user.passwordHash);
       } else {
-        // Legacy SHA-256 hash — verify and auto-migrate to bcrypt
         passwordValid = verifyLegacySHA256(password, user.passwordHash);
         if (passwordValid) {
           console.log(`Migrating password hash for user '${username}' from SHA-256 to bcrypt`);
-          await db.adminUser.update({
-            where: { username },
-            data: { passwordHash: hashPassword(password) },
+          const newHash = hashPassword(password);
+          await db.execute({
+            sql: 'UPDATE AdminUser SET "passwordHash" = ? WHERE username = ?',
+            args: [newHash, username],
           });
         }
       }
@@ -116,7 +104,6 @@ export async function POST(request: NextRequest) {
       recordSuccessfulLogin(identifier);
       const sessionToken = await createSession(username);
 
-      // Set HttpOnly cookie for middleware auth protection
       const response = NextResponse.json({
         success: true,
         token: sessionToken,
@@ -128,7 +115,7 @@ export async function POST(request: NextRequest) {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: 60 * 60 * 24, // 24 hours
+        maxAge: 60 * 60 * 24,
       });
 
       return response;
@@ -137,18 +124,21 @@ export async function POST(request: NextRequest) {
     if (action === 'verify') {
       const parsed = verifySchema.safeParse(body);
       if (!parsed.success) return NextResponse.json({ valid: false }, { status: 401 });
-
       const u = await validateSession(parsed.data.token);
       if (!u) return NextResponse.json({ valid: false }, { status: 401 });
-      const user = await db.adminUser.findUnique({ where: { username: u } });
+      // Use libsql directly for user lookup
+      const db = getDb();
+      const result = await db.execute({
+        sql: 'SELECT username, name, role FROM AdminUser WHERE username = ?',
+        args: [u],
+      });
+      const user = result.rows[0];
       return NextResponse.json({ valid: true, user: { username: user?.username, name: user?.name, role: user?.role } });
     }
 
     if (action === 'logout') {
       const parsed = logoutSchema.safeParse(body);
       if (parsed.success) await destroySession(parsed.data.token);
-
-      // Clear the HttpOnly cookie
       const response = NextResponse.json({ success: true });
       response.cookies.set('admin_token', '', {
         httpOnly: true,
@@ -157,16 +147,13 @@ export async function POST(request: NextRequest) {
         path: '/',
         maxAge: 0,
       });
-
       return response;
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Auth error:', error);
-    // TEMP: Return env var diagnostic for any error
-    const libsqlTest = await testDirectLibsql();
     const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: 'Auth failed', detail: msg.substring(0, 200), envCheck: libsqlTest }, { status: 500 });
+    return NextResponse.json({ error: 'Auth failed', detail: msg.substring(0, 200) }, { status: 500 });
   }
 }
