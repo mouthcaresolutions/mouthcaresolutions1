@@ -10,6 +10,12 @@ function createPrismaClient() {
   const dbUrl = process.env.DATABASE_URL || ''
   const directUrl = process.env.DIRECT_DATABASE_URL || dbUrl
 
+  if (!dbUrl) {
+    // During build or when DATABASE_URL is not set, return a dummy client
+    // that will fail on actual queries (caught by callers)
+    console.warn('DATABASE_URL not set — database operations will fail')
+  }
+
   // For Turso: use the direct URL for writes
   const libsql = createClient({
     url: directUrl || dbUrl,
@@ -24,6 +30,17 @@ function createPrismaClient() {
   })
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient()
+function getDb(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient()
+  }
+  return globalForPrisma.prisma
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+// Lazy accessor — only creates the Prisma client when actually used
+// This prevents build-time failures when DATABASE_URL is not available
+export const db = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getDb(), prop, receiver)
+  },
+})
