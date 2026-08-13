@@ -3,6 +3,23 @@ import crypto from 'crypto';
 import { db } from '@/lib/db';
 import { verifyPassword, hashPassword, createSession, validateSession, destroySession, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from '@/lib/auth';
 import { z } from 'zod';
+import { createClient } from '@libsql/client';
+
+// Direct libsql test for env var debugging
+async function testDirectLibsql() {
+  try {
+    const url = process.env.DATABASE_URL;
+    const token = process.env.TURSO_AUTH_TOKEN;
+    if (!url || url === 'undefined') {
+      return `DATABASE_URL not available. Value: ${JSON.stringify(url)}, typeof: ${typeof url}, all env keys with DB: ${Object.keys(process.env).filter(k => k.includes('DB') || k.includes('DATABASE')).join(',')}`;
+    }
+    const client = createClient({ url, authToken: token });
+    const result = await client.execute('SELECT 1 as ok');
+    return `Direct libsql OK: ${JSON.stringify(result.rows[0])}`;
+  } catch (e: any) {
+    return `Direct libsql FAIL: ${e.message || e}`;
+  }
+}
 
 // Legacy SHA-256 verification (for migration from old hash format)
 // Old setup scripts used SHA-256(password:MCS@2024Secure) with a static salt
@@ -147,7 +164,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Auth error:', error);
+    // TEMP: Return env var diagnostic for any error
+    const libsqlTest = await testDirectLibsql();
     const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: 'Auth failed', detail: msg.substring(0, 200) }, { status: 500 });
+    return NextResponse.json({ error: 'Auth failed', detail: msg.substring(0, 200), envCheck: libsqlTest }, { status: 500 });
   }
 }
