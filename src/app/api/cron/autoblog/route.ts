@@ -95,7 +95,7 @@ CATEGORY: ${category}
 
 STRUCTURE: Use H2/H3 headings. Include: What is ${treatment.name}, why it's important, signs you need it, step-by-step procedure, cost in Vijayawada (INR), benefits, recovery, why choose Mouth Care Solutions, and 5-7 FAQs. Mention Vijayawada 5-8 times and Mouth Care Solutions 2-3 times. Each paragraph 4-6 sentences minimum.`;
 
-    const result = await zai.createChatCompletion({
+    const result = await (zai as any).createChatCompletion({
       model: 'glm-4-flash',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 4096,

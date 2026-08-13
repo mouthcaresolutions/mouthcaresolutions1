@@ -219,7 +219,7 @@ async function generateArticle(title: string, treatment: string, keywords: strin
     const zai = await ZAI.create();
     const prompt = generatePrompt(title, treatment, keywords, category);
 
-    const result = await zai.createChatCompletion({
+    const result = await (zai as any).createChatCompletion({
       model: 'glm-4-flash',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 4096,
