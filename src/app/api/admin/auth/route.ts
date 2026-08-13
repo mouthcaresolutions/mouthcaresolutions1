@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       }
 
       recordSuccessfulLogin(identifier);
-      const sessionToken = await createSession(username);
+      const sessionToken = await createSession({ username: String(user.username), name: String(user.name), role: String(user.role) });
 
       const response = NextResponse.json({
         success: true,
@@ -154,7 +154,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Auth error:', error);
-    const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: 'Auth failed', detail: msg.substring(0, 200) }, { status: 500 });
+    return NextResponse.json({ error: 'Auth failed' }, { status: 500 });
   }
 }

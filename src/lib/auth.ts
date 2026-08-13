@@ -95,16 +95,18 @@ if (!globalThis._adminSessions) {
   globalThis._adminSessions = new Map<string, { username: string; role: string; name: string; expires: number }>();
 }
 
-export async function createSession(username: string): Promise<string> {
-  const user = await db.adminUser.findUnique({ where: { username } });
-  if (!user) throw new Error('User not found');
+export async function createSession(user: { username: string; role: string; name: string } | string): Promise<string> {
+  // Support both direct user object and username string (for backward compat)
+  const userData = typeof user === 'string'
+    ? { username: user, role: 'admin', name: user }
+    : user;
 
-  const token = createJWT({ username: user.username, role: user.role, name: user.name });
+  const token = createJWT({ username: userData.username, role: userData.role, name: userData.name });
 
   (globalThis._adminSessions || (globalThis._adminSessions = new Map())).set(token, {
-    username: user.username,
-    role: user.role,
-    name: user.name,
+    username: userData.username,
+    role: userData.role,
+    name: userData.name,
     expires: Date.now() + 24 * 60 * 60 * 1000,
   });
 
