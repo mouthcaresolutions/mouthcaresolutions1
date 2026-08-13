@@ -11,18 +11,14 @@ function createPrismaClient() {
   const directUrl = process.env.DIRECT_DATABASE_URL || dbUrl
 
   if (!dbUrl) {
-    // During build or when DATABASE_URL is not set, return a dummy client
-    // that will fail on actual queries (caught by callers)
     console.warn('DATABASE_URL not set — database operations will fail')
   }
 
-  // For Turso: use the direct URL for writes
   const libsql = createClient({
     url: directUrl || dbUrl,
     authToken: process.env.TURSO_AUTH_TOKEN || undefined,
   })
 
-  // PrismaLibSQL adapter - type cast needed for newer prisma version compatibility
   const adapter = new PrismaLibSQL(libsql as any)
   return new PrismaClient({
     adapter: adapter as any,
@@ -37,10 +33,18 @@ function getDb(): PrismaClient {
   return globalForPrisma.prisma
 }
 
-// Lazy accessor — only creates the Prisma client when actually used
-// This prevents build-time failures when DATABASE_URL is not available
+// Lazy Proxy — only creates the Prisma client on first property access.
+// This prevents build-time failures when DATABASE_URL is not available.
+// Key: use real PrismaClient as receiver (not the Proxy) so `this` is correct.
 export const db = new Proxy({} as PrismaClient, {
-  get(_target, prop, receiver) {
-    return Reflect.get(getDb(), prop, receiver)
+  get(_target, prop) {
+    // Prevent thenable coercion — if something awaits `db`, don't treat it as a promise
+    if (prop === 'then') return undefined
+    const real = getDb()
+    // Use real client as receiver so Prisma getters get correct `this`
+    const val = Reflect.get(real, prop, real)
+    // Bind methods to the real client so `this` is correct
+    if (typeof val === 'function') return val.bind(real)
+    return val
   },
 })
