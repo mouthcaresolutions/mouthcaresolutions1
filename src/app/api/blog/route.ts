@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '12', 10);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    // HIGH #3 FIX: Bound limit to prevent data dumps
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
     const category = searchParams.get('category') || '';
     const search = searchParams.get('search') || '';
 
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [posts, total] = await Promise.all([
-      prisma.blogPost.findMany({
+      db.blogPost.findMany({
         where,
         orderBy: { scheduledAt: 'desc' },
         skip: (page - 1) * limit,
@@ -41,7 +40,7 @@ export async function GET(request: NextRequest) {
           content: true,
         },
       }),
-      prisma.blogPost.count({ where }),
+      db.blogPost.count({ where }),
     ]);
 
     // Extract thumbnail URLs from content so listing page can show images

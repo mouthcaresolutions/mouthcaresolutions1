@@ -40,11 +40,6 @@ export async function GET(request: NextRequest) {
     const pendingPayments = (pendingPay.rows[0]?.total as number) ?? 0;
 
     // New patients this month
-    const newPatientsMonth = await crm.execute({
-      sql: 'SELECT COUNT(*) as count FROM Patient WHERE createdAt >= ? AND category = ? OR (createdAt >= ? AND category IS NULL)',
-      args: [monthStart, 'New', monthStart],
-    });
-    // Simpler query for new patients this month
     const newPm = await crm.execute({
       sql: 'SELECT COUNT(*) as count FROM Patient WHERE createdAt >= ?',
       args: [monthStart],

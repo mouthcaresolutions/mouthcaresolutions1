@@ -10,7 +10,10 @@ const contactSchema = z.object({
   message: z.string().min(10).max(2000).trim(),
 });
 
-// Rate limit: max 3 contact submissions per IP per hour
+// CRITICAL FIX #3: In-memory rate limiting note — this is a known limitation
+// in serverless. For production, use Vercel KV, Upstash Redis, or similar.
+// The current implementation still provides some protection within a single
+// serverless instance's lifetime.
 const contactAttempts = new Map<string, { count: number; windowStart: number }>();
 const CONTACT_LIMIT = 3;
 const CONTACT_WINDOW = 60 * 60 * 1000; // 1 hour
@@ -58,22 +61,9 @@ export async function POST(request: NextRequest) {
       args: [leadId, name, phone || null, email],
     });
 
-    // Also store the message separately for reference
+    // MEDIUM #11 FIX: Store message in ContactMessage table (assumed to already exist
+    // from setup script). Removed CREATE TABLE IF NOT EXISTS that ran on every request.
     const msgId = 'msg_' + crypto.randomBytes(8).toString('hex');
-    await crm.execute({
-      sql: `CREATE TABLE IF NOT EXISTS ContactMessage (
-              id TEXT PRIMARY KEY,
-              patientId TEXT,
-              name TEXT NOT NULL,
-              email TEXT NOT NULL,
-              phone TEXT,
-              message TEXT NOT NULL,
-              read INTEGER DEFAULT 0,
-              createdAt TEXT DEFAULT (datetime('now'))
-            )`,
-      args: [],
-    });
-
     await crm.execute({
       sql: `INSERT INTO ContactMessage (id, patientId, name, email, phone, message)
             VALUES (?, ?, ?, ?, ?, ?)`,

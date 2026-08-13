@@ -68,6 +68,8 @@ export const createPatientSchema = z.object({
     .regex(/^[6-9]\d{9}$/, 'Must be a valid 10-digit Indian phone number')
     .nullable()
     .optional(),
+  insuranceProvider: z.string().max(200).nullable().optional(),
+  insuranceNumber: z.string().max(100).nullable().optional(),
   category: z.enum(['New', 'Existing', 'VIP', 'Inactive']).optional(),
   notes: z.string().max(5000).nullable().optional(),
 });
@@ -115,6 +117,8 @@ export const updatePatientSchema = z.object({
     .regex(/^[6-9]\d{9}$/, 'Must be a valid 10-digit Indian phone number')
     .nullable()
     .optional(),
+  insuranceProvider: z.string().max(200).nullable().optional(),
+  insuranceNumber: z.string().max(100).nullable().optional(),
   category: z.enum(['New', 'Existing', 'VIP', 'Inactive']).optional(),
   notes: z.string().max(5000).nullable().optional(),
 });

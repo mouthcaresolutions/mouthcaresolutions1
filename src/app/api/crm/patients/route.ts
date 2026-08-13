@@ -177,9 +177,9 @@ export async function POST(request: NextRequest) {
         v.currentMedications ?? null,
         v.emergencyContactName ?? null,
         v.emergencyContactPhone ?? null,
-        null, // insuranceProvider
-        null, // insuranceNumber
-        v.category ?? 'New',
+        v.insuranceProvider ?? null,
+        v.insuranceNumber ?? null,
+        v.category || 'New',
         null, // photo
         v.notes ?? null,
         0,

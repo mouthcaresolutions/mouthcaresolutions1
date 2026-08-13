@@ -159,6 +159,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // HIGH #8 FIX: Check for double-booking (same doctor, same date, same time)
+    if (v.doctorId) {
+      const sameSlotCheck = await crm.execute({
+        sql: `SELECT id FROM Appointment 
+             WHERE doctorId = ? AND date = ? AND time = ? AND status NOT IN ('cancelled', 'no-show')`,
+        args: [v.doctorId, v.date, v.time],
+      });
+      if (sameSlotCheck.rows.length > 0) {
+        return NextResponse.json(
+          { error: 'This time slot is already booked for the selected doctor. Please choose a different time.' },
+          { status: 409 },
+        );
+      }
+    }
+
     await crm.execute({
       sql: `INSERT INTO Appointment (
         id, appointmentId, patientId, patientName, doctorId, doctorName,

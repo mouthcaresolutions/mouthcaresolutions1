@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -14,10 +14,58 @@ import {
   Menu,
   X,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+// CRITICAL FIX #4: Auth guard for CRM layout
+// Verifies session on mount — middleware is the primary guard, this is defense-in-depth
+function useAuthGuard() {
+  const router = useRouter();
+  const [verified, setVerified] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    async function verify() {
+      try {
+        // Check for token in cookie or localStorage
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('admin_token='))
+          ?.split('=')[1]
+          || localStorage.getItem('admin_token');
+
+        if (!token) {
+          router.replace('/rajeshark/login');
+          return;
+        }
+
+        const res = await fetch('/api/admin/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'verify', token }),
+        });
+
+        if (!res.ok) {
+          localStorage.removeItem('admin_token');
+          router.replace('/rajeshark/login');
+          return;
+        }
+
+        setVerified(true);
+      } catch {
+        router.replace('/rajeshark/login');
+      } finally {
+        setChecking(false);
+      }
+    }
+    verify();
+  }, [router]);
+
+  return { verified, checking };
+}
 
 interface NavItem {
   label: string;
@@ -125,12 +173,29 @@ export default function CRMLayout({
   const pathname = usePathname();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { verified, checking } = useAuthGuard();
 
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
   }, []);
 
   const pageTitle = getPageTitle(pathname);
+
+  // CRITICAL FIX #4: Show loading while verifying auth
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+          <p className="text-sm text-gray-500">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!verified) {
+    return null; // Router will redirect to login
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

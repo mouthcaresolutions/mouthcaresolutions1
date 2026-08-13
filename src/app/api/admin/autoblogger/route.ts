@@ -397,6 +397,7 @@ export async function POST(request: NextRequest) {
       const startTime = Date.now();
       let postsCreated = 0;
       let postsFailed = 0;
+      let lastError: string | null = null;
 
       const titles = generateTitles(treatment.name);
       const cats = CATEGORY_MAP[treatment.name] || ['General Dentistry'];
@@ -426,11 +427,13 @@ export async function POST(request: NextRequest) {
             postsCreated++;
           } else {
             postsFailed++;
+            lastError = `Article generation returned null for: ${uniqueTitle}`;
           }
           await new Promise(r => setTimeout(r, 2000));
         } catch (err) {
           console.error('Bulk generation error:', err);
           postsFailed++;
+          lastError = (err as any)?.message || String(err);
         }
       }
 

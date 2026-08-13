@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
@@ -9,8 +7,9 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const post = await prisma.blogPost.findUnique({
-      where: { slug },
+    // CRITICAL FIX #1: Only return published posts to public
+    const post = await db.blogPost.findFirst({
+      where: { slug, status: 'published' },
     });
 
     if (!post) {
