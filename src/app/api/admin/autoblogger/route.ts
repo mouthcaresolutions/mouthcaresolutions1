@@ -214,25 +214,33 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
-    // z-ai-web-dev-sdk: Use constructor directly with env vars to bypass file-based config
-    // which doesn't work on Vercel (process.cwd() points to build output, not project root)
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const config = {
-      baseUrl: process.env.ZAI_BASE_URL || 'https://internal-api.z.ai/v1',
-      apiKey: process.env.ZAI_API_KEY || 'Z.ai',
-      chatId: process.env.ZAI_CHAT_ID || '',
-      token: process.env.ZAI_TOKEN || '',
-      userId: process.env.ZAI_USER_ID || '',
-    };
-    const zai = new ZAI(config);
+    // Call the Z.ai internal API directly via fetch, bypassing the SDK
+    // which requires a config file that doesn't exist on Vercel's serverless environment
+    const baseUrl = process.env.ZAI_BASE_URL || 'https://internal-api.z.ai/v1';
+    const apiKey = process.env.ZAI_API_KEY || 'Z.ai';
     const prompt = generatePrompt(title, treatment, keywords, category);
 
-    const result = await (zai as any).createChatCompletion({
-      model: 'glm-4-flash',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 4096,
-      temperature: 0.8,
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'X-Z-AI-From': 'Z',
+      },
+      body: JSON.stringify({
+        model: 'glm-4-flash',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 4096,
+        temperature: 0.8,
+      }),
     });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`API error ${response.status}: ${errText}`);
+    }
+
+    const result = await response.json();
 
     const content = result?.choices?.[0]?.message?.content || '';
 
