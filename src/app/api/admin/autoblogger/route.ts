@@ -214,25 +214,26 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
-    // @ts-expect-error - z-ai-web-dev-sdk dynamic import
-    const { generate } = await import('z-ai-web-dev-sdk');
+    // z-ai-web-dev-sdk: exports ZAI class with create() factory
+    const ZAI = (await import('z-ai-web-dev-sdk')).default;
+    const zai = await ZAI.create();
     const prompt = generatePrompt(title, treatment, keywords, category);
-    
-    const result = await generate({
+
+    const result = await zai.createChatCompletion({
       model: 'glm-4-flash',
-      prompt,
-      maxTokens: 4096,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4096,
       temperature: 0.8,
     });
-    
-    const content = typeof result === 'string' ? result : (result as any).text || (result as any).content || JSON.stringify(result);
-    
+
+    const content = result?.choices?.[0]?.message?.content || '';
+
     if (!content || content.length < 500) return null;
-    
+
     const firstParagraph = content.split('\n\n').find(p => p.length > 100 && !p.startsWith('#')) || '';
     const excerpt = firstParagraph.substring(0, 300).trim();
     const metaDesc = excerpt.substring(0, 160).trim();
-    
+
     return { content, excerpt, metaDesc };
   } catch (error) {
     console.error('Article generation failed:', title, error);

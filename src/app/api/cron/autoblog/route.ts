@@ -84,8 +84,9 @@ export async function GET(request: NextRequest) {
     const title = generateTitle(treatment.name);
     const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
 
-    // @ts-expect-error - z-ai-web-dev-sdk dynamic import
-    const { generate } = await import('z-ai-web-dev-sdk');
+    // z-ai-web-dev-sdk: exports ZAI class with create() factory
+    const ZAI = (await import('z-ai-web-dev-sdk')).default;
+    const zai = await ZAI.create();
     const prompt = `You are a professional dental content writer for Mouth Care Solutions, a leading dental clinic in Vijayawada, Andhra Pradesh, India. Write a comprehensive, SEO-optimized, long-form article (minimum 1500 words, ideally 2000+ words) in markdown format.
 
 TITLE: ${title}
@@ -94,14 +95,15 @@ CATEGORY: ${category}
 
 STRUCTURE: Use H2/H3 headings. Include: What is ${treatment.name}, why it's important, signs you need it, step-by-step procedure, cost in Vijayawada (INR), benefits, recovery, why choose Mouth Care Solutions, and 5-7 FAQs. Mention Vijayawada 5-8 times and Mouth Care Solutions 2-3 times. Each paragraph 4-6 sentences minimum.`;
 
-    const result = await generate({
+    const result = await zai.createChatCompletion({
       model: 'glm-4-flash',
-      prompt,
-      maxTokens: 4096,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4096,
       temperature: 0.85,
     });
 
-    const content = typeof result === 'string' ? result : (result as any).text || (result as any).content || JSON.stringify(result);
+    const content = result?.choices?.[0]?.message?.content || '';
+
 
     if (!content || content.length < 500) {
       return NextResponse.json({ error: 'Content too short' }, { status: 500 });
