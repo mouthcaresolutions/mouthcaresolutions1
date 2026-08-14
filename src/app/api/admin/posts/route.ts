@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
-import { validateSession } from '@/lib/auth';
+import { validateSession, checkBodySize } from '@/lib/auth';
 import { sanitizeContent } from '@/lib/sanitize';
 
 const MAX_TITLE_LENGTH = 300;
@@ -43,6 +43,10 @@ export async function POST(request: NextRequest) {
     if (!token || !(await auth(token))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // SEC-L04: Body size check (blog posts can be large — 500KB max)
+    const sizeCheck = checkBodySize(request, 500_000);
+    if (sizeCheck) return sizeCheck as NextResponse;
 
     const body = await request.json();
     const { title, content, excerpt, category, keywords, metaTitle, metaDesc, status, scheduledAt } = body;
@@ -102,6 +106,10 @@ export async function PUT(request: NextRequest) {
     if (!token || !(await auth(token))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // SEC-L04: Body size check
+    const sizeCheck = checkBodySize(request, 500_000);
+    if (sizeCheck) return sizeCheck as NextResponse;
 
     const body = await request.json();
     const { id } = body;

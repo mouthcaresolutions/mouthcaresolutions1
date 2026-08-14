@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
-import { validateSession } from '@/lib/auth';
+import { validateSession, checkBodySize } from '@/lib/auth';
 import { postToPlatform, autoShareNewPost, getOAuthUrl, SOCIAL_PLATFORMS } from '@/lib/social-poster';
 
 // Seed default social configs
@@ -25,11 +25,11 @@ export async function GET(request: NextRequest) {
     const configs = await blogDb.getAllSocialConfigs();
     const logs = await blogDb.getRecentSocialLogs(30);
 
-    // Mask tokens for security
+    // SEC-H07 FIX: Never expose token material — only indicate connection status
     const safeConfigs = configs.map((c: any) => ({
       ...c,
-      accessToken: c.accessToken ? `${c.accessToken.substring(0, 10)}...${c.accessToken.substring(c.accessToken.length - 4)}` : null,
-      refreshToken: c.refreshToken ? '****' : null,
+      accessToken: c.accessToken ? true : false,
+      refreshToken: undefined,
     }));
 
     return NextResponse.json({ configs: safeConfigs, logs });
@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
     if (!token || !(await validateSession(token))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // SEC-L04: Body size check
+    const sizeCheck = checkBodySize(request);
+    if (sizeCheck) return sizeCheck as NextResponse;
 
     const body = await request.json();
     const { action, platform } = body;

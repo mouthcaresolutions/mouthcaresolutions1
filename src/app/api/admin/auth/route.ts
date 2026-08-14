@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@libsql/client';
-import { verifyPassword, hashPassword, createSession, validateSession, destroySession, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from '@/lib/auth';
+import { verifyPassword, hashPassword, createSession, validateSession, destroySession, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin, checkBodySize } from '@/lib/auth';
 import { z } from 'zod';
 
 // Direct libsql connection — bypasses Prisma env() bug
@@ -15,8 +15,11 @@ function getDb() {
 // Legacy SHA-256 verification (for migration from old hash format)
 function verifyLegacySHA256(password: string, hash: string): boolean {
   try {
-    // SEC-C01: Legacy salt moved to env var (with hardcoded fallback for migration)
-    const LEGACY_SALT = process.env.LEGACY_PASSWORD_SALT || 'MCS@2024Secure';
+    const LEGACY_SALT = process.env.LEGACY_PASSWORD_SALT;
+    if (!LEGACY_SALT) {
+      console.error('SEC-C01: LEGACY_PASSWORD_SALT env var not set. Cannot verify legacy hashes.');
+      return false;
+    }
     const salted = crypto.createHash('sha256').update(`${password}:${LEGACY_SALT}`).digest('hex');
     if (salted === hash) return true;
     const plain = crypto.createHash('sha256').update(password).digest('hex');
@@ -49,6 +52,10 @@ const logoutSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // SEC-L04: Body size check (login payloads are small)
+    const sizeCheck = checkBodySize(request, 10_000);
+    if (sizeCheck) return sizeCheck as NextResponse;
+
     const body = await request.json();
     const { action } = body;
 

@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { validateSession } from '@/lib/auth';
+import { requireRole, extractAuthToken, checkBodySize } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
 import { createPatientSchema, updatePatientSchema, validateBody } from '@/lib/validation';
+
+// SEC-M08: All roles (admin, doctor, frontoffice) can read patient data
+const READ_ROLES = ['admin', 'doctor', 'frontoffice'];
+// SEC-M08: Only admin and frontoffice can create/update patients
+const WRITE_ROLES = ['admin', 'frontoffice'];
 
 // GET: List patients with search, filter, pagination
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, READ_ROLES)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -107,8 +112,12 @@ export async function GET(request: NextRequest) {
 // POST: Register new patient
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    // SEC-L04: Body size check
+    const sizeCheck = checkBodySize(request);
+    if (sizeCheck) return sizeCheck as NextResponse;
+
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, WRITE_ROLES)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -196,8 +205,12 @@ export async function POST(request: NextRequest) {
 // PUT: Update patient
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    // SEC-L04: Body size check
+    const sizeCheck = checkBodySize(request);
+    if (sizeCheck) return sizeCheck as NextResponse;
+
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, WRITE_ROLES)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

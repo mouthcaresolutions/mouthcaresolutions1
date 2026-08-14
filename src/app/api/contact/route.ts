@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCRM } from '@/lib/crm-db';
 import crypto from 'crypto';
+import { checkBodySize } from '@/lib/auth';
 
 const contactSchema = z.object({
   name: z.string().min(2).max(100).trim(),
@@ -34,6 +35,10 @@ function checkContactRateLimit(ip: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    // SEC-L04: Body size check (50KB max for contact form)
+    const sizeCheck = checkBodySize(request, 50_000);
+    if (sizeCheck) return sizeCheck as NextResponse;
+
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
 
     if (!checkContactRateLimit(ip)) {

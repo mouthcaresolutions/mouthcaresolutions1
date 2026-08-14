@@ -158,6 +158,41 @@ export async function destroySession(token: string): Promise<void> {
   globalThis._adminSessions?.delete(token);
 }
 
+// ==================== RBAC HELPER ====================
+
+/**
+ * SEC-M08 FIX: Role-based access control for CRM endpoints.
+ * Returns session data if valid and role is in allowedRoles, or null otherwise.
+ */
+export function requireRole(token: string, allowedRoles: string[]): { username: string; role: string; name: string } | null {
+  const session = getSessionData(token);
+  if (!session) return null;
+  if (!allowedRoles.includes(session.role)) return null;
+  return session;
+}
+
+/**
+ * Extract auth token from request (Authorization header or cookie)
+ */
+export function extractAuthToken(request: { headers: { get: (name: string) => string | null }; cookies: { get: (name: string) => { value: string } | undefined } }): string | null {
+  return request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('admin_token')?.value || null;
+}
+
+/**
+ * SEC-L04: Check request body size before parsing.
+ * Returns error Response if body exceeds maxBytes, or null if OK.
+ */
+export function checkBodySize(request: Request, maxBytes = 1_000_000): Response | null {
+  const len = parseInt(request.headers.get('content-length') || '0', 10);
+  if (len > maxBytes) {
+    return new Response(JSON.stringify({ error: 'Request body too large' }), {
+      status: 413,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  return null;
+}
+
 declare global {
   var _adminSessions: Map<string, { username: string; role: string; name: string; expires: number }> | undefined;
 }

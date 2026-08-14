@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { validateSession } from '@/lib/auth';
+import { requireRole, extractAuthToken, checkBodySize } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
 import { createPaymentSchema, updatePaymentSchema, validateBody } from '@/lib/validation';
+
+// SEC-M08: All staff can read payments
+const READ_ROLES = ['admin', 'doctor', 'frontoffice'];
+// SEC-M08: Only admin and frontoffice can create/update payments
+const WRITE_ROLES = ['admin', 'frontoffice'];
 
 // GET: List payments with filters
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, READ_ROLES)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -95,8 +100,12 @@ export async function GET(request: NextRequest) {
 // POST: Create payment/invoice
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    // SEC-L04: Body size check
+    const sizeCheck = checkBodySize(request);
+    if (sizeCheck) return sizeCheck as NextResponse;
+
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, WRITE_ROLES)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -204,8 +213,12 @@ export async function POST(request: NextRequest) {
 // PUT: Update payment (mark as paid, add payment)
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    // SEC-L04: Body size check
+    const sizeCheck = checkBodySize(request);
+    if (sizeCheck) return sizeCheck as NextResponse;
+
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, WRITE_ROLES)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

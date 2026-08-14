@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/auth';
+import { requireRole, extractAuthToken } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, ['admin', 'doctor', 'frontoffice'])) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -108,39 +108,50 @@ export async function middleware(request: NextRequest) {
 
   const origin = headers.get('origin');
   const referer = headers.get('referer');
-  const host = headers.get('host') || '';
 
-  const allowedOrigins = new Set<string>([
-    ...ALLOWED_ORIGINS,
-    `https://${host}`,
-  ]);
+  const allowedOrigins = new Set<string>(ALLOWED_ORIGINS);
 
   if (origin) {
     if (!allowedOrigins.has(origin)) {
       console.warn(`CSRF blocked: origin=${origin}, path=${pathname}`);
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    return NextResponse.next();
-  }
-
-  if (referer) {
+  } else if (referer) {
     try {
       const refererOrigin = new URL(referer).origin;
-      if (!allowedOrigins.has(refererOrigin) && refererOrigin !== `https://${host}`) {
+      if (!allowedOrigins.has(refererOrigin)) {
         console.warn(`CSRF blocked: referer=${referer}, path=${pathname}`);
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-      return NextResponse.next();
     } catch {
       console.warn(`CSRF blocked: invalid referer=${referer}, path=${pathname}`);
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+  } else {
+    console.warn(`CSRF blocked: no origin/referer, path=${pathname}`);
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  console.warn(`CSRF blocked: no origin/referer, path=${pathname}`);
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // ==================== SECURITY HEADERS ====================
+  const response = NextResponse.next();
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('X-DNS-Prefetch-Control', 'on');
+  response.headers.set('X-XSS-Protection', '0'); // Disabled in favor of CSP
+  response.headers.set(
+    'Strict-Transport-Security',
+    'max-age=63072000; includeSubDomains; preload'
+  );
+  response.headers.set(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; frame-src https://www.facebook.com https://web.facebook.com; connect-src 'self' https://*.turso.io https://api.pexels.com https://pixabay.com https://graph.facebook.com https://api.twitter.com https://api.linkedin.com https://*.z.ai;"
+  );
+  return response;
 }
 
 export const config = {
+  runtime: 'nodejs',
   matcher: ['/rajeshark/:path*', '/api/:path*'],
 };

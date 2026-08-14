@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/auth';
+import { requireRole, extractAuthToken } from '@/lib/auth';
 import { getCRM } from '@/lib/crm-db';
+
+const READ_ROLES = ['admin', 'doctor', 'frontoffice'];
 
 // GET: Single patient with all visits, payments, and appointment history
 export async function GET(
@@ -8,8 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    const token = extractAuthToken(request);
+    if (!token || !requireRole(token, READ_ROLES)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
