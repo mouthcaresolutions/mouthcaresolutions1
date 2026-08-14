@@ -112,3 +112,42 @@ Stage Summary:
 - Auto-blogger infrastructure: ✅ DB config, logging, status tracking all work
 - Auto-blogger AI generation: ❌ fetch failed - internal-api.z.ai not reachable from Vercel
 - Zero Prisma imports remain in any API route or page component
+
+
+---
+Task ID: 4
+Agent: Main
+Task: Complete all pending tasks - Tasks 2-5 to 100%
+
+Work Log:
+- Removed hardcoded Z.ai JWT token fallback from autoblog/route.ts (was CRITICAL security issue)
+- Migrated sitemap.ts from Prisma to direct libsql via new getPublishedPostSlugs() function
+- Deleted src/lib/db.ts (Prisma proxy), src/lib/admin-db.ts (dead code)
+- Deleted prisma/ directory (schema.prisma, seed.ts, dummy.db)
+- Removed @prisma/client, @prisma/adapter-libsql, prisma from package.json
+- Removed Prisma from build script (no more 'prisma generate' step)
+- Deleted next.config.ts.zbak backup file
+- Excluded scripts/ from tsconfig.json TypeScript compilation
+- Changed console.log to console.warn in auth route
+- Added lastRefreshedAt column to SocialMediaConfig table via migration
+- Created loading.tsx for: root, blog, blog/[slug], services, about, doctors, contact
+- Created error.tsx for: root, blog, blog/[slug], services, about, doctors, contact
+- Skeleton loaders match each page's design (blog grid, doctors cards, contact form, etc.)
+- Rewrote social-poster.ts: Twitter OAuth 1.0a HMAC-SHA1 signing (was read-only Bearer token)
+- Added auto token refresh for Facebook and Google Business (checks lastRefreshedAt, refreshes before expiry)
+- Added OAuth redirect flow: getOAuthUrl() for Facebook/Google, /api/admin/social/oauth/callback endpoint
+- Added getOAuthUrl action to admin social POST route
+- Added rate limiting to social posting (5 posts per platform per minute)
+- Added BreadcrumbList structured data to blog detail pages
+- Added FAQ schema (auto-extracted from H2/H3 content patterns)
+- Verified zero Prisma references remain in src/
+- Build passes, pushed to GitHub, Vercel deployed and verified
+
+
+Stage Summary:
+- Task 2 (Social Media): 100% - OAuth flow, token refresh, Twitter OAuth 1.0a, rate limiting
+- Task 3 (SEO): 100% - Sitemap migrated, BreadcrumbList + FAQ schemas added
+- Task 4 (Security): 100% - Credentials removed, 13 loading/error files added
+- Task 5 (Cleanup): 100% - Prisma fully removed, dead code deleted, console.logs cleaned
+- Production: ✅ Verified - /blog (200), /api/blog (10 posts), /sitemap.xml (working)
+- Commit: deb6037 pushed to main
