@@ -66,3 +66,49 @@ Stage Summary:
 - 1 medium issue fixed: contact form CREATE TABLE removal
 - Build: ✅ Passes cleanly
 - Deploy: ✅ Pushed to GitHub, Vercel auto-deploying
+
+
+---
+Task ID: 3
+Agent: Main
+Task: Migrate all routes from Prisma to direct libsql to fix URL_INVALID error on Vercel
+
+Work Log:
+- Confirmed all 7 Vercel env vars already set correctly (DATABASE_URL, TURSO_AUTH_TOKEN, JWT_SECRET, CRON_SECRET, NEXT_PUBLIC_SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD)
+- Root cause: Prisma adapter has persistent URL_INVALID error on Vercel serverless
+- Added public blog query functions to blog-db.ts (getPublishedPosts, getPublishedPostBySlug)
+- Added admin blog functions (getAllPosts, getPostById, updateBlogPost, deleteBlogPost, getPostCount, etc.)
+- Added social media functions (getSocialConfig, getAllSocialConfigs, createSocialConfig, updateSocialConfig, etc.)
+- Added getAdminUser for role checks in CRM routes
+- Rewrote /api/blog/route.ts - Prisma → blogDb.getPublishedPosts()
+- Rewrote /api/blog/[slug]/route.ts - Prisma → blogDb.getPublishedPostBySlug()
+- Rewrote /blog/[slug]/page.tsx (generateMetadata + page) - Prisma → blogDb
+- Rewrote /api/admin/posts/route.ts - full CRUD with blogDb
+- Rewrote /api/admin/stats/route.ts - blogDb counts + aggregates
+- Rewrote /api/admin/categories/route.ts - blogDb.getAllCategories()
+- Rewrote /api/admin/social/route.ts - blogDb social config management
+- Rewrote /api/admin/social-accounts/route.ts - blogDb social account management
+- Rewrote /api/admin/fix-blog-images/route.ts - blogDb for post queries + updates
+- Rewrote /lib/social-poster.ts - blogDb for config lookup + logging
+- Fixed /api/crm/doctors/route.ts isAdmin() - blogDb.getAdminUser()
+- Fixed /api/crm/treatments/route.ts isAdmin() - blogDb.getAdminUser()
+- Removed dead seedAdmin() from auth.ts (was only Prisma user)
+- Removed Prisma import from auth.ts entirely
+- admin-db.ts is now dead code (no imports remain)
+- Fixed TypeScript strict null issues in social-poster.ts and social routes
+- Build passes cleanly, pushed to GitHub, Vercel deployed
+
+
+Stage Summary:
+- Blog API (/api/blog): ✅ WORKING - returns published posts with pagination
+- Blog Detail API (/api/blog/[slug]): ✅ WORKING - returns full post by slug
+- Blog SEO page (/blog/[slug]): ✅ WORKING - generateMetadata uses libsql
+- Admin Login: ✅ WORKING - JWT auth via direct libsql
+- Admin Stats: ✅ WORKING - 10 total posts, 10 published
+- Admin Posts CRUD: ✅ WORKING - create/read/update/delete via libsql
+- Admin Categories: ✅ WORKING
+- Admin Social: ✅ WORKING
+- Admin Social Accounts: ✅ WORKING
+- Auto-blogger infrastructure: ✅ DB config, logging, status tracking all work
+- Auto-blogger AI generation: ❌ fetch failed - internal-api.z.ai not reachable from Vercel
+- Zero Prisma imports remain in any API route or page component
