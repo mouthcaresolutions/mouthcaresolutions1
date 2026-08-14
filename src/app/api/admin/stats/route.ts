@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 import { validateSession } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -11,13 +11,13 @@ export async function GET(request: NextRequest) {
 
     const [totalPosts, publishedPosts, draftPosts, postsByCategory, recentPosts, recentWeekPosts, autoBloggerConfig] =
       await Promise.all([
-        db.blogPost.count(),
-        db.blogPost.count({ where: { status: 'published' } }),
-        db.blogPost.count({ where: { status: 'draft' } }),
-        db.blogPost.groupBy({ by: ['category'], where: { status: 'published' }, _count: { category: true } }),
-        db.blogPost.findMany({ where: { status: 'published' }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, title: true, category: true, createdAt: true, scheduledAt: true } }),
-        db.blogPost.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
-        db.autoBloggerConfig.findFirst(),
+        blogDb.getPostCount(),
+        blogDb.getPostCount('published'),
+        blogDb.getPostCount('draft'),
+        blogDb.getPostsByCategoryCount(),
+        blogDb.getRecentPosts(5),
+        blogDb.getRecentWeekPostCount(),
+        blogDb.getAutoBloggerConfig(),
       ]);
 
     return NextResponse.json({ totalPosts, publishedPosts, draftPosts, postsByCategory, recentPosts, recentWeekPosts, autoBloggerConfig });

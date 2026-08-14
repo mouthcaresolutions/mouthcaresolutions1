@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 
 // ==================== SUPPORTED PLATFORMS ====================
 
@@ -13,7 +13,6 @@ const SUPPORTED_PLATFORMS = [
   { id: 'google_business', name: 'Google Business Profile', icon: 'google', category: 'Business', description: 'Post updates to your Google Business Profile', authType: 'oauth2', docsUrl: 'https://developers.google.com/my-business/' },
 ];
 
-// Credentials required per platform
 const PLATFORM_CREDENTIALS: Record<string, { key: string; label: string; placeholder: string; type?: string; required?: boolean }[]> = {
   facebook: [
     { key: 'accessToken', label: 'Page Access Token', placeholder: 'EAAxxxxx...', type: 'password', required: true },
@@ -80,14 +79,14 @@ const PLATFORM_SETUP_GUIDES: Record<string, string> = {
 
 async function seedSocialConfigs() {
   for (const platform of SUPPORTED_PLATFORMS) {
-    const existing = await db.socialMediaConfig.findUnique({ where: { platform: platform.id } });
+    const existing = await blogDb.getSocialConfig(platform.id);
     if (!existing) {
-      await db.socialMediaConfig.create({ data: { platform: platform.id } });
+      await blogDb.createSocialConfig(platform.id);
     }
   }
 }
 
-// ==================== GET: Return supported platforms with connection status ====================
+// ==================== GET ====================
 
 export async function GET(request: NextRequest) {
   try {
@@ -98,14 +97,11 @@ export async function GET(request: NextRequest) {
     }
 
     await seedSocialConfigs();
+    const configs = await blogDb.getAllSocialConfigs();
+    const configMap = new Map(configs.map((c: any) => [c.platform, c]));
 
-    // Fetch all stored configs from DB
-    const configs = await db.socialMediaConfig.findMany({ orderBy: { platform: 'asc' } });
-    const configMap = new Map(configs.map((c) => [c.platform, c]));
-
-    // Build response with connection status
     const platforms = SUPPORTED_PLATFORMS.map((p) => {
-      const stored = configMap.get(p.id);
+      const stored = configMap.get(p.id) as any;
       const isConnected = stored?.enabled && !!stored?.accessToken;
       return {
         ...p,
@@ -127,7 +123,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ==================== POST: Save tokens / toggle enable ====================
+// ==================== POST ====================
 
 export async function POST(request: NextRequest) {
   try {
@@ -140,7 +136,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, platform } = body;
 
-    // Validate platform
     const validPlatform = SUPPORTED_PLATFORMS.find((p) => p.id === platform);
     if (!validPlatform) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
@@ -152,7 +147,7 @@ export async function POST(request: NextRequest) {
     if (action === 'saveTokens') {
       const { accessToken, refreshToken, pageId, accountId, extraConfig } = body;
 
-      const updateData: any = {};
+      const updateData: Record<string, any> = {};
       if (accessToken !== undefined) updateData.accessToken = accessToken;
       if (refreshToken !== undefined) updateData.refreshToken = refreshToken;
       if (pageId !== undefined) updateData.pageId = pageId;
@@ -162,40 +157,33 @@ export async function POST(request: NextRequest) {
       }
 
       // Auto-enable when tokens are saved
-      if (accessToken) updateData.enabled = true;
+      if (accessToken) updateData.enabled = 1;
 
-      const config = await db.socialMediaConfig.update({
-        where: { platform },
-        data: updateData,
-      });
+      await blogDb.updateSocialConfig(platform, updateData);
 
       return NextResponse.json({
         success: true,
         platform,
-        status: config.enabled && config.accessToken ? 'connected' : 'not_connected',
+        status: accessToken ? 'connected' : 'not_connected',
       });
     }
 
     // Toggle platform enabled/disabled
     if (action === 'toggleEnabled') {
       const { enabled } = body;
-      const config = await db.socialMediaConfig.update({
-        where: { platform },
-        data: { enabled },
-      });
-
-      return NextResponse.json({
-        success: true,
-        platform,
-        enabled: config.enabled,
-      });
+      await blogDb.updateSocialConfig(platform, { enabled: enabled ? 1 : 0 });
+      return NextResponse.json({ success: true, platform, enabled });
     }
 
     // Clear credentials (disconnect)
     if (action === 'disconnect') {
-      await db.socialMediaConfig.update({
-        where: { platform },
-        data: { enabled: false, accessToken: null, refreshToken: null, pageId: null, accountId: null, lastError: null },
+      await blogDb.updateSocialConfig(platform, {
+        enabled: 0,
+        accessToken: null,
+        refreshToken: null,
+        pageId: null,
+        accountId: null,
+        lastError: null,
       });
 
       return NextResponse.json({ success: true, platform, status: 'not_connected' });

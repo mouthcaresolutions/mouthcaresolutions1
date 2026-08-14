@@ -1,4 +1,4 @@
-import { db } from './db';
+import * as blogDb from './blog-db';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://mouthcaresolutions.com';
 
@@ -130,7 +130,7 @@ const POST_FUNCTIONS: Record<string, (config: any, content: PostContent) => Prom
 // ==================== EXPORTED FUNCTIONS ====================
 
 export async function postToPlatform(platform: string, postId: string, title: string, excerpt: string, slug: string, keywords: string | null) {
-  const config = await db.socialMediaConfig.findUnique({ where: { platform } });
+  const config = await blogDb.getSocialConfig(platform);
   if (!config || !config.enabled || !config.accessToken) {
     return { success: false, error: `${platform} not configured or disabled` };
   }
@@ -142,32 +142,29 @@ export async function postToPlatform(platform: string, postId: string, title: st
   const postFn = POST_FUNCTIONS[platform];
   if (!postFn) return { success: false, error: `Unknown platform: ${platform}` };
 
-  const extraConfig = config.extraConfig ? JSON.parse(config.extraConfig) : {};
+  const extraConfig = config.extraConfig ? JSON.parse(config.extraConfig as string) : {};
   const result = await postFn({ ...config, ...extraConfig }, postContent);
 
   // Log the attempt
-  await db.socialPostLog.create({
-    data: {
-      platform,
-      blogPostId: postId,
-      title,
-      postUrl,
-      socialPostId: result.postId || null,
-      status: result.success ? 'success' : 'failed',
-      response: result.error || null,
-      postedAt: new Date(),
-    },
+  await blogDb.createSocialPostLog({
+    platform,
+    blogPostId: postId,
+    title,
+    postUrl,
+    socialPostId: result.postId || undefined,
+    status: result.success ? 'success' : 'failed',
+    response: result.error || undefined,
   });
 
   if (result.success) {
-    await db.socialMediaConfig.update({
-      where: { platform },
-      data: { lastPostedAt: new Date(), totalPosts: { increment: 1 }, lastError: null },
+    await blogDb.updateSocialConfig(platform, {
+      lastPostedAt: new Date().toISOString(),
+      totalPosts: Number(config.totalPosts || 0) + 1,
+      lastError: null,
     });
   } else {
-    await db.socialMediaConfig.update({
-      where: { platform },
-      data: { lastError: result.error?.substring(0, 500) },
+    await blogDb.updateSocialConfig(platform, {
+      lastError: result.error?.substring(0, 500),
     });
   }
 
@@ -175,15 +172,14 @@ export async function postToPlatform(platform: string, postId: string, title: st
 }
 
 export async function autoShareNewPost(postId: string, title: string, excerpt: string, slug: string, keywords: string | null) {
-  const enabledPlatforms = await db.socialMediaConfig.findMany({
-    where: { enabled: true, accessToken: { not: null } },
-  });
+  const configs = await blogDb.getAllSocialConfigs();
+  const enabledPlatforms = configs.filter((c: any) => c.enabled && c.accessToken);
   if (enabledPlatforms.length === 0) return { shared: 0, total: 0, results: [] };
 
   const results: any[] = [];
   for (const pConfig of enabledPlatforms) {
     try {
-      const r = await postToPlatform(pConfig.platform, postId, title, excerpt, slug, keywords);
+      const r = await postToPlatform(pConfig.platform as string, postId, title, excerpt, slug, keywords);
       results.push({ platform: pConfig.platform, ...r });
     } catch (err) {
       results.push({ platform: pConfig.platform, success: false, error: String(err) });

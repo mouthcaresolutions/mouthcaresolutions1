@@ -91,6 +91,216 @@ export async function incrementConfigStats(id: string, generated: number, failed
   });
 }
 
+// ---- Public blog queries ----
+
+export async function getPublishedPosts(page: number, limit: number, category: string, search: string) {
+  const db = getBlogDb();
+  const offset = (page - 1) * limit;
+  let whereClause = 'WHERE status = ?';
+  const args: any[] = ['published'];
+
+  if (category) {
+    whereClause += ' AND category = ?';
+    args.push(category);
+  }
+  if (search) {
+    whereClause += ' AND (title LIKE ? OR content LIKE ? OR keywords LIKE ?)';
+    const searchPattern = `%${search}%`;
+    args.push(searchPattern, searchPattern, searchPattern);
+  }
+
+  const [postsResult, countResult] = await Promise.all([
+    db.execute({
+      sql: `SELECT id, slug, title, "metaTitle", "metaDesc", excerpt, category, keywords, "scheduledAt", "createdAt", content FROM BlogPost ${whereClause} ORDER BY "scheduledAt" DESC LIMIT ? OFFSET ?`,
+      args: [...args, limit, offset],
+    }),
+    db.execute({
+      sql: `SELECT COUNT(*) as total FROM BlogPost ${whereClause}`,
+      args,
+    }),
+  ]);
+
+  const total = Number(countResult.rows[0]?.total || 0);
+  return { posts: postsResult.rows, total };
+}
+
+export async function getPublishedPostBySlug(slug: string) {
+  const db = getBlogDb();
+  const result = await db.execute({
+    sql: 'SELECT * FROM BlogPost WHERE slug = ? AND status = ? LIMIT 1',
+    args: [slug, 'published'],
+  });
+  return result.rows[0] || null;
+}
+
+// ---- Admin user ----
+
+export async function getAdminUser(username: string) {
+  const db = getBlogDb();
+  const r = await db.execute({ sql: 'SELECT * FROM AdminUser WHERE username = ? LIMIT 1', args: [username] });
+  return r.rows[0] || null;
+}
+
+// ---- Admin blog queries ----
+
+export async function getAllPosts(page: number, limit: number, category: string, status: string, search: string) {
+  const db = getBlogDb();
+  const offset = (page - 1) * limit;
+  const conditions: string[] = [];
+  const args: any[] = [];
+
+  if (category) { conditions.push('category = ?'); args.push(category); }
+  if (status) { conditions.push('status = ?'); args.push(status); }
+  if (search) {
+    conditions.push('(title LIKE ? OR content LIKE ? OR keywords LIKE ?)');
+    const s = `%${search}%`;
+    args.push(s, s, s);
+  }
+  const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+  const [postsResult, countResult] = await Promise.all([
+    db.execute({
+      sql: `SELECT * FROM BlogPost ${whereClause} ORDER BY "scheduledAt" DESC LIMIT ? OFFSET ?`,
+      args: [...args, limit, offset],
+    }),
+    db.execute({
+      sql: `SELECT COUNT(*) as total FROM BlogPost ${whereClause}`,
+      args,
+    }),
+  ]);
+
+  return { posts: postsResult.rows, total: Number(countResult.rows[0]?.total || 0) };
+}
+
+export async function getPostById(id: string) {
+  const db = getBlogDb();
+  const result = await db.execute({ sql: 'SELECT * FROM BlogPost WHERE id = ? LIMIT 1', args: [id] });
+  return result.rows[0] || null;
+}
+
+export async function updateBlogPost(id: string, data: Record<string, any>) {
+  const db = getBlogDb();
+  const sets = Object.entries(data).map(([k, v]) => `"${k}" = ?`).join(', ');
+  const values = Object.values(data);
+  await db.execute({
+    sql: `UPDATE BlogPost SET ${sets}, "updatedAt" = CURRENT_TIMESTAMP WHERE id = ?`,
+    args: [...values, id],
+  });
+  return getPostById(id);
+}
+
+export async function deleteBlogPost(id: string) {
+  const db = getBlogDb();
+  await db.execute({ sql: 'DELETE FROM BlogPost WHERE id = ?', args: [id] });
+}
+
+export async function getPostCount(whereStatus?: string) {
+  const db = getBlogDb();
+  if (whereStatus) {
+    const r = await db.execute({ sql: 'SELECT COUNT(*) as c FROM BlogPost WHERE status = ?', args: [whereStatus] });
+    return Number(r.rows[0]?.c || 0);
+  }
+  const r = await db.execute('SELECT COUNT(*) as c FROM BlogPost');
+  return Number(r.rows[0]?.c || 0);
+}
+
+export async function getPostsByCategoryCount() {
+  const db = getBlogDb();
+  const r = await db.execute({ sql: 'SELECT category, COUNT(*) as count FROM BlogPost WHERE status = ? GROUP BY category ORDER BY count DESC', args: ['published'] });
+  return r.rows;
+}
+
+export async function getRecentPosts(limit: number) {
+  const db = getBlogDb();
+  const r = await db.execute({
+    sql: 'SELECT id, title, category, "createdAt", "scheduledAt" FROM BlogPost WHERE status = ? ORDER BY "createdAt" DESC LIMIT ?',
+    args: ['published', limit],
+  });
+  return r.rows;
+}
+
+export async function getRecentWeekPostCount() {
+  const db = getBlogDb();
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const r = await db.execute({
+    sql: 'SELECT COUNT(*) as c FROM BlogPost WHERE "createdAt" >= ?',
+    args: [weekAgo],
+  });
+  return Number(r.rows[0]?.c || 0);
+}
+
+export async function getAllCategories() {
+  const db = getBlogDb();
+  const r = await db.execute('SELECT category, COUNT(*) as count FROM BlogPost GROUP BY category ORDER BY count DESC');
+  return r.rows.map(row => row.category as string);
+}
+
+export async function getPublishedPostBySlugAny(slug: string) {
+  const db = getBlogDb();
+  const r = await db.execute({ sql: 'SELECT * FROM BlogPost WHERE slug = ? LIMIT 1', args: [slug] });
+  return r.rows[0] || null;
+}
+
+// ---- Social media config queries ----
+
+export async function getSocialConfig(platform: string) {
+  const db = getBlogDb();
+  const r = await db.execute({ sql: 'SELECT * FROM SocialMediaConfig WHERE platform = ? LIMIT 1', args: [platform] });
+  return r.rows[0] || null;
+}
+
+export async function getAllSocialConfigs() {
+  const db = getBlogDb();
+  const r = await db.execute('SELECT * FROM SocialMediaConfig ORDER BY platform ASC');
+  return r.rows;
+}
+
+export async function createSocialConfig(platform: string) {
+  const db = getBlogDb();
+  const id = 'smc_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  await db.execute({
+    sql: 'INSERT INTO SocialMediaConfig (id, platform, enabled, "totalPosts", "createdAt", "updatedAt") VALUES (?, ?, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+    args: [id, platform],
+  });
+}
+
+export async function updateSocialConfig(platform: string, data: Record<string, any>) {
+  const db = getBlogDb();
+  const sets = Object.entries(data).map(([k, v]) => `"${k}" = ?`).join(', ');
+  const values = Object.values(data);
+  await db.execute({
+    sql: `UPDATE SocialMediaConfig SET ${sets}, "updatedAt" = CURRENT_TIMESTAMP WHERE platform = ?`,
+    args: [...values, platform],
+  });
+}
+
+export async function getRecentSocialLogs(limit: number) {
+  const db = getBlogDb();
+  const r = await db.execute({
+    sql: 'SELECT * FROM SocialPostLog ORDER BY "postedAt" DESC LIMIT ?',
+    args: [limit],
+  });
+  return r.rows;
+}
+
+export async function createSocialPostLog(data: { platform: string; blogPostId?: string; title: string; postUrl?: string; socialPostId?: string; status: string; response?: string }) {
+  const db = getBlogDb();
+  const id = 'spl_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  await db.execute({
+    sql: 'INSERT INTO SocialPostLog (id, platform, "blogPostId", title, "postUrl", "socialPostId", status, response, "postedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+    args: [id, data.platform, data.blogPostId || null, data.title, data.postUrl || null, data.socialPostId || null, data.status, data.response || null],
+  });
+}
+
+export async function getPublishedPostsForSharing(limit: number) {
+  const db = getBlogDb();
+  const r = await db.execute({
+    sql: 'SELECT * FROM BlogPost WHERE status = ? ORDER BY "createdAt" DESC LIMIT ?',
+    args: ['published', limit],
+  });
+  return r.rows;
+}
+
 export async function setConfigStatus(id: string, status: string) {
   const db = getBlogDb();
   if (status === 'running') {

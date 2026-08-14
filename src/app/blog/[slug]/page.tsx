@@ -1,28 +1,28 @@
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 import type { Metadata } from 'next';
 import BlogDetailContent from './BlogDetailContent';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const post = await db.blogPost.findFirst({
-    where: { slug, status: 'published' },
-    select: { title: true, metaTitle: true, metaDesc: true, excerpt: true, category: true, keywords: true, scheduledAt: true, content: true },
-  });
+  const post = await blogDb.getPublishedPostBySlug(slug);
   if (!post) return { title: 'Article Not Found' };
 
-  const title = post.metaTitle || post.title;
-  const description = post.metaDesc || post.excerpt || '';
-  const imageUrl = post.content?.match(/<img\s+[^>]*src=["']([^"']+)["']/i)?.[1] || '/mcs-logo.jpg';
+  const title = (post.metaTitle as string) || (post.title as string);
+  const excerpt = (post.excerpt as string) || '';
+  const metaDesc = (post.metaDesc as string) || '';
+  const description = metaDesc || excerpt;
+  const content = (post.content as string) || '';
+  const imageUrl = content.match(/<img\s+[^>]*src=["']([^"']+)["']/i)?.[1] || '/mcs-logo.jpg';
 
   return {
     title,
     description: description.substring(0, 160),
-    keywords: post.keywords?.split(',').map(k => k.trim()).filter(Boolean) || [],
+    keywords: (post.keywords as string)?.split(',').map(k => k.trim()).filter(Boolean) || [],
     openGraph: {
       title,
       description: description.substring(0, 160),
       type: 'article',
-      publishedTime: post.scheduledAt?.toISOString(),
+      publishedTime: post.scheduledAt as string,
       url: `https://mouthcaresolutions.com/blog/${slug}`,
       images: [{ url: imageUrl, width: 1200, height: 630 }],
     },
@@ -37,17 +37,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BlogDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = await db.blogPost.findFirst({
-    where: { slug, status: 'published' },
-    select: { title: true, metaDesc: true, excerpt: true, scheduledAt: true },
-  });
+  const post = await blogDb.getPublishedPostBySlug(slug);
 
   const articleSchema = post
     ? {
         "@context": "https://schema.org",
         "@type": "Article",
         headline: post.title,
-        description: post.metaDesc || post.excerpt,
+        description: (post.metaDesc as string) || (post.excerpt as string),
         author: { "@type": "Organization", name: "Mouth Care Solutions" },
         publisher: { "@type": "Organization", name: "Mouth Care Solutions", logo: { "@type": "ImageObject", url: "https://mouthcaresolutions.com/mcs-logo.jpg" } },
         datePublished: post.scheduledAt,

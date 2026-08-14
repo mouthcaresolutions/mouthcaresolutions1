@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { validateSession } from '@/lib/auth';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 import { getCRM } from '@/lib/crm-db';
 import { createDoctorSchema, updateDoctorSchema, validateBody } from '@/lib/validation';
 
@@ -9,7 +9,7 @@ import { createDoctorSchema, updateDoctorSchema, validateBody } from '@/lib/vali
 async function isAdmin(token: string): Promise<boolean> {
   const username = await validateSession(token);
   if (!username) return false;
-  const user = await db.adminUser.findUnique({ where: { username } });
+  const user = await blogDb.getAdminUser(username);
   return user?.role === 'admin';
 }
 

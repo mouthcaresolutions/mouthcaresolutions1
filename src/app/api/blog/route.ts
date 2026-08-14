@@ -1,51 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    // HIGH #3 FIX: Bound limit to prevent data dumps
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
     const category = searchParams.get('category') || '';
     const search = searchParams.get('search') || '';
 
-    const where: Record<string, unknown> = { status: 'published' };
-    if (category) where.category = category;
-    if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { content: { contains: search } },
-        { keywords: { contains: search } },
-      ];
-    }
-
-    const [posts, total] = await Promise.all([
-      db.blogPost.findMany({
-        where,
-        orderBy: { scheduledAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          metaTitle: true,
-          metaDesc: true,
-          excerpt: true,
-          category: true,
-          keywords: true,
-          scheduledAt: true,
-          createdAt: true,
-          content: true,
-        },
-      }),
-      db.blogPost.count({ where }),
-    ]);
+    const { posts, total } = await blogDb.getPublishedPosts(page, limit, category, search);
 
     // Extract thumbnail URLs from content so listing page can show images
     const postsWithImages = posts.map(p => {
-      const imgMatch = p.content?.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+      const content = p.content as string || '';
+      const imgMatch = content.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
       const thumbUrl = imgMatch?.[1] || null;
       const { content: _c, ...rest } = p;
       return { ...rest, thumbUrl };

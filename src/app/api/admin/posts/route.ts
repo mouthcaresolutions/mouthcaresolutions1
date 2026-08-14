@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 import { validateSession } from '@/lib/auth';
 
 // CRITICAL FIX #5: Sanitize HTML content to prevent XSS while preserving safe markdown/HTML
 function sanitizeContent(content: string): string {
-  // Remove dangerous script tags and event handlers
   let sanitized = content
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')  // onclick=, onload=, etc.
-    .replace(/\bon\w+\s*=\s*\S+/gi, '')               // onclick=without-quotes
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/\bon\w+\s*=\s*\S+/gi, '')
     .replace(/<iframe\b[^>]*>.*?<\/iframe>/gi, '')
     .replace(/<object\b[^>]*>.*?<\/object>/gi, '')
     .replace(/<embed\b[^>]*>/gi, '')
@@ -18,9 +17,8 @@ function sanitizeContent(content: string): string {
   return sanitized;
 }
 
-// Content length limits
 const MAX_TITLE_LENGTH = 300;
-const MAX_CONTENT_LENGTH = 100_000;  // 100KB max content
+const MAX_CONTENT_LENGTH = 100_000;
 const MAX_EXCERPT_LENGTH = 2000;
 const MAX_KEYWORDS_LENGTH = 2000;
 
@@ -44,26 +42,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || '';
     const search = searchParams.get('search') || '';
 
-    const where: Record<string, unknown> = {};
-    if (category) where.category = category;
-    if (status) where.status = status;
-    if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { content: { contains: search } },
-        { keywords: { contains: search } },
-      ];
-    }
-
-    const [posts, total] = await Promise.all([
-      db.blogPost.findMany({
-        where,
-        orderBy: { scheduledAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      db.blogPost.count({ where }),
-    ]);
+    const { posts, total } = await blogDb.getAllPosts(page, limit, category, status, search);
 
     return NextResponse.json({ posts, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (error) {
@@ -82,7 +61,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, content, excerpt, category, keywords, metaTitle, metaDesc, status, scheduledAt } = body;
 
-    // CRITICAL FIX #5: Validate lengths and sanitize content
     if (!title || !content || !category) {
       return NextResponse.json({ error: 'Title, content, and category are required' }, { status: 400 });
     }
@@ -102,7 +80,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Keywords must be under ${MAX_KEYWORDS_LENGTH} characters` }, { status: 400 });
     }
 
-    // Sanitize content to prevent XSS
     const sanitizedContent = sanitizeContent(content);
     const sanitizedExcerpt = excerpt ? sanitizeContent(excerpt) : '';
 
@@ -112,19 +89,18 @@ export async function POST(request: NextRequest) {
       .replace(/^-|-$/g, '')
       + '-' + Date.now().toString(36);
 
-    const post = await db.blogPost.create({
-      data: {
-        slug,
-        title: title.substring(0, MAX_TITLE_LENGTH),
-        content: sanitizedContent,
-        excerpt: sanitizedExcerpt || sanitizedContent.substring(0, 200),
-        category,
-        keywords: keywords || '',
-        metaTitle: (metaTitle || title).substring(0, MAX_TITLE_LENGTH),
-        metaDesc: (metaDesc || sanitizedExcerpt || sanitizedContent.substring(0, 160)).substring(0, 160),
-        status: status === 'published' ? 'published' : 'draft',
-        scheduledAt: scheduledAt ? new Date(scheduledAt) : new Date(),
-      },
+    const post = await blogDb.createBlogPost({
+      slug,
+      title: title.substring(0, MAX_TITLE_LENGTH),
+      content: sanitizedContent,
+      excerpt: sanitizedExcerpt || sanitizedContent.substring(0, 200),
+      category,
+      keywords: keywords || '',
+      metaTitle: (metaTitle || title).substring(0, MAX_TITLE_LENGTH),
+      metaDesc: (metaDesc || sanitizedExcerpt || sanitizedContent.substring(0, 160)).substring(0, 160),
+      status: status === 'published' ? 'published' : 'draft',
+      author: 'Mouth Care Solutions',
+      scheduledAt: scheduledAt || new Date().toISOString(),
     });
 
     return NextResponse.json({ post, success: true });
@@ -148,12 +124,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Post ID required' }, { status: 400 });
     }
 
-    // Whitelist allowed fields to prevent mass assignment
     const allowedFields = ['title', 'content', 'excerpt', 'category', 'keywords', 'metaTitle', 'metaDesc', 'status', 'scheduledAt'] as const;
     const data: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        // Sanitize text fields on update too
         if (field === 'content' || field === 'excerpt') {
           data[field] = sanitizeContent(String(body[field]));
         } else if (field === 'title' || field === 'metaTitle') {
@@ -166,16 +140,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Convert scheduledAt to Date if provided
-    if (data.scheduledAt) {
-      data.scheduledAt = new Date(data.scheduledAt as string);
-    }
-
-    const post = await db.blogPost.update({
-      where: { id },
-      data,
-    });
-
+    const post = await blogDb.updateBlogPost(id, data);
     return NextResponse.json({ post, success: true });
   } catch (error) {
     console.error('Admin posts PUT error:', error);
@@ -196,7 +161,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Post ID required' }, { status: 400 });
     }
 
-    await db.blogPost.delete({ where: { id } });
+    await blogDb.deleteBlogPost(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Admin posts DELETE error:', error);

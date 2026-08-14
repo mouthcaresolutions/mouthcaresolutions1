@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import * as blogDb from '@/lib/blog-db';
 
 export async function GET(
   request: NextRequest,
@@ -7,10 +7,7 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    // CRITICAL FIX #1: Only return published posts to public
-    const post = await db.blogPost.findFirst({
-      where: { slug, status: 'published' },
-    });
+    const post = await blogDb.getPublishedPostBySlug(slug);
 
     if (!post) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });

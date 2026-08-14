@@ -1,6 +1,5 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { db } from './db';
 
 // ==================== PASSWORD HASHING (bcryptjs) ====================
 
@@ -215,41 +214,4 @@ export function recordFailedLogin(identifier: string): void {
 
 export function recordSuccessfulLogin(identifier: string): void {
   globalThis._loginAttempts?.delete(identifier);
-}
-
-// ==================== ADMIN SEEDING ====================
-
-export async function seedAdmin() {
-  const count = await db.adminUser.count();
-  if (count === 0) {
-    // Only seed if ADMIN_PASSWORD env var is set (first-time setup)
-    const initialPassword = process.env.ADMIN_PASSWORD;
-    if (!initialPassword) {
-      console.warn('WARNING: No ADMIN_PASSWORD env var set. Run: npx prisma db seed or set up admin via /rajeshark/setup');
-      return;
-    }
-    await db.adminUser.create({
-      data: {
-        username: 'admin',
-        passwordHash: hashPassword(initialPassword),
-        name: 'Admin',
-        role: 'admin',
-      },
-    });
-    console.log('Admin user seeded with password from ADMIN_PASSWORD env var');
-  }
-
-  // Seed auto-blogger config
-  const configCount = await db.autoBloggerConfig.count();
-  if (configCount === 0) {
-    await db.autoBloggerConfig.create({
-      data: {
-        enabled: true,
-        postsPerDay: 3,
-        categories: 'General Dentistry,Cosmetic Dentistry,Oral Hygiene,Pediatric Dentistry,Implants & Prosthodontics,Orthodontics,Preventive Dental Care',
-        status: 'idle',
-      },
-    });
-    console.log('Auto-blogger config seeded');
-  }
 }
