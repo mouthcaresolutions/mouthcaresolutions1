@@ -121,22 +121,7 @@ export async function POST(request: NextRequest) {
     const patient = patientResult.rows[0];
     const patientName = `${patient.firstName}${patient.lastName ? ' ' + patient.lastName : ''}`;
 
-    // Generate sequential visitId: MCS-VIS-NNNN
-    const lastVisit = await crm.execute({
-      sql: "SELECT visitId FROM PatientVisit WHERE visitId LIKE 'MCS-VIS-%' ORDER BY visitId DESC LIMIT 1",
-      args: [],
-    });
-
-    let nextNum = 1;
-    if (lastVisit.rows.length > 0) {
-      const lastId = lastVisit.rows[0].visitId as string;
-      const lastNum = parseInt(lastId.replace('MCS-VIS-', ''), 10);
-      if (!isNaN(lastNum)) {
-        nextNum = lastNum + 1;
-      }
-    }
-
-    const visitId = `MCS-VIS-${String(nextNum).padStart(4, '0')}`;
+    // Generate visitId atomically via subquery to avoid race condition
     const id = 'vis_' + crypto.randomBytes(12).toString('hex');
 
     // Get doctor name if doctorId provided
@@ -153,53 +138,65 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = v.totalAmount ?? 0;
     const discount = v.discount ?? 0;
-
-    // Insert visit
-    await crm.execute({
-      sql: `INSERT INTO PatientVisit (
-        id, visitId, patientId, patientName, doctorId, doctorName,
-        appointmentId, date, chiefComplaint, diagnosis, treatmentDone,
-        prescription, notes, followUpDate, totalAmount, discount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        id,
-        visitId,
-        v.patientId,
-        patientName,
-        v.doctorId ?? null,
-        doctorName,
-        v.appointmentId ?? null,
-        v.date,
-        v.chiefComplaint ?? null,
-        v.diagnosis ?? null,
-        v.treatmentDone ?? null,
-        v.prescription ?? null,
-        v.notes ?? null,
-        v.followUpDate ?? null,
-        totalAmount,
-        discount,
-      ],
-    });
-
-    // Update patient stats
     const netAmount = totalAmount - discount;
-    await crm.execute({
-      sql: `UPDATE Patient SET 
-        totalVisits = totalVisits + 1, 
-        totalSpent = totalSpent + ?, 
-        lastVisitDate = ?,
-        updatedAt = CURRENT_TIMESTAMP
-      WHERE id = ?`,
-      args: [netAmount, v.date, v.patientId],
-    });
 
-    // Update appointment status to completed if appointmentId is provided
+    // Batch the visit INSERT + patient stats UPDATE + optional appointment status UPDATE
+    // to ensure atomicity (no partial state if one operation fails)
+    const batchStatements: { sql: string; args: (string | number | null)[] }[] = [
+      {
+        sql: `INSERT INTO PatientVisit (
+          id, visitId, patientId, patientName, doctorId, doctorName,
+          appointmentId, date, chiefComplaint, diagnosis, treatmentDone,
+          prescription, notes, followUpDate, totalAmount, discount
+        ) VALUES (
+          ?,
+          'MCS-VIS-' || printf('%04d', COALESCE((SELECT MAX(CAST(SUBSTR(visitId, -4) AS INTEGER)) FROM PatientVisit WHERE visitId LIKE 'MCS-VIS-%'), 0) + 1),
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )`,
+        args: [
+          id,
+          v.patientId,
+          patientName,
+          v.doctorId ?? null,
+          doctorName,
+          v.appointmentId ?? null,
+          v.date,
+          v.chiefComplaint ?? null,
+          v.diagnosis ?? null,
+          v.treatmentDone ?? null,
+          v.prescription ?? null,
+          v.notes ?? null,
+          v.followUpDate ?? null,
+          totalAmount,
+          discount,
+        ],
+      },
+      {
+        sql: `UPDATE Patient SET 
+          totalVisits = totalVisits + 1, 
+          totalSpent = totalSpent + ?, 
+          lastVisitDate = ?,
+          updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+        args: [netAmount, v.date, v.patientId],
+      },
+    ];
+
     if (v.appointmentId) {
-      await crm.execute({
+      batchStatements.push({
         sql: "UPDATE Appointment SET status = 'completed', updatedAt = CURRENT_TIMESTAMP WHERE id = ?",
         args: [v.appointmentId],
       });
     }
+
+    await crm.batch(batchStatements);
+
+    // Fetch the generated visitId for the response
+    const inserted = await crm.execute({
+      sql: 'SELECT visitId FROM PatientVisit WHERE id = ?',
+      args: [id],
+    });
+    const visitId = inserted.rows[0]?.visitId as string;
 
     return NextResponse.json(
       {

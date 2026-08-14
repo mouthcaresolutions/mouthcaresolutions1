@@ -120,41 +120,8 @@ export async function POST(request: NextRequest) {
     const patient = patientResult.rows[0];
     const patientName = `${patient.firstName}${patient.lastName ? ' ' + patient.lastName : ''}`;
 
-    // Generate sequential paymentId: MCS-PAY-NNNN
-    const lastPayment = await crm.execute({
-      sql: "SELECT paymentId FROM Payment WHERE paymentId LIKE 'MCS-PAY-%' ORDER BY paymentId DESC LIMIT 1",
-      args: [],
-    });
-
-    let nextPayNum = 1;
-    if (lastPayment.rows.length > 0) {
-      const lastId = lastPayment.rows[0].paymentId as string;
-      const lastNum = parseInt(lastId.replace('MCS-PAY-', ''), 10);
-      if (!isNaN(lastNum)) {
-        nextPayNum = lastNum + 1;
-      }
-    }
-    const paymentId = `MCS-PAY-${String(nextPayNum).padStart(4, '0')}`;
-
-    // Generate sequential invoiceNumber: INV-YYYY-NNNN
+    // Generate paymentId and invoiceNumber atomically via subqueries to avoid race conditions
     const year = new Date().getFullYear().toString();
-    const invPrefix = `INV-${year}-`;
-
-    const lastInvoice = await crm.execute({
-      sql: 'SELECT invoiceNumber FROM Payment WHERE invoiceNumber LIKE ? ORDER BY invoiceNumber DESC LIMIT 1',
-      args: [`${invPrefix}%`],
-    });
-
-    let nextInvNum = 1;
-    if (lastInvoice.rows.length > 0) {
-      const lastInvId = lastInvoice.rows[0].invoiceNumber as string;
-      const lastNum = parseInt(lastInvId.replace(invPrefix, ''), 10);
-      if (!isNaN(lastNum)) {
-        nextInvNum = lastNum + 1;
-      }
-    }
-    const invoiceNumber = `${invPrefix}${String(nextInvNum).padStart(4, '0')}`;
-
     const id = 'pay_' + crypto.randomBytes(12).toString('hex');
     const amount = v.amount;
     const paidAmount = v.paidAmount ?? 0;
@@ -167,30 +134,54 @@ export async function POST(request: NextRequest) {
       status = 'partial';
     }
 
-    await crm.execute({
-      sql: `INSERT INTO Payment (
-        id, paymentId, patientId, patientName, visitId, invoiceNumber,
-        amount, paidAmount, balanceAmount, paymentMethod, status,
-        date, dueDate, items, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        id,
-        paymentId,
-        v.patientId,
-        patientName,
-        v.visitId ?? null,
-        invoiceNumber,
-        amount,
-        paidAmount,
-        balanceAmount,
-        v.paymentMethod ?? null,
-        status,
-        v.date,
-        v.dueDate ?? null,
-        v.items ?? null,
-        v.notes ?? null,
-      ],
+    // Batch the payment INSERT + patient balanceDue UPDATE for atomicity
+    await crm.batch([
+      {
+        sql: `INSERT INTO Payment (
+          id, paymentId, patientId, patientName, visitId, invoiceNumber,
+          amount, paidAmount, balanceAmount, paymentMethod, status,
+          date, dueDate, items, notes
+        ) VALUES (
+          ?,
+          'MCS-PAY-' || printf('%04d', COALESCE((SELECT MAX(CAST(SUBSTR(paymentId, -4) AS INTEGER)) FROM Payment WHERE paymentId LIKE 'MCS-PAY-%'), 0) + 1),
+          ?, ?, ?,
+          'INV-' || ? || '-' || printf('%04d', COALESCE((SELECT MAX(CAST(SUBSTR(invoiceNumber, -4) AS INTEGER)) FROM Payment WHERE invoiceNumber LIKE 'INV-' || ? || '-%'), 0) + 1),
+          ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )`,
+        args: [
+          id,
+          v.patientId,
+          patientName,
+          v.visitId ?? null,
+          year,
+          year,
+          amount,
+          paidAmount,
+          balanceAmount,
+          v.paymentMethod ?? null,
+          status,
+          v.date,
+          v.dueDate ?? null,
+          v.items ?? null,
+          v.notes ?? null,
+        ],
+      },
+      {
+        sql: `UPDATE Patient SET 
+          balanceDue = (SELECT COALESCE(SUM(balanceAmount), 0) FROM Payment WHERE patientId = Patient.id AND status IN ('pending', 'partial')),
+          updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+        args: [v.patientId],
+      },
+    ]);
+
+    // Fetch the generated paymentId and invoiceNumber for the response
+    const inserted = await crm.execute({
+      sql: 'SELECT paymentId, invoiceNumber FROM Payment WHERE id = ?',
+      args: [id],
     });
+    const paymentId = inserted.rows[0]?.paymentId as string;
+    const invoiceNumber = inserted.rows[0]?.invoiceNumber as string;
 
     return NextResponse.json(
       {
@@ -292,20 +283,20 @@ export async function PUT(request: NextRequest) {
       args.push(v.items || null);
     }
 
-    args.push(v.id);
-    await crm.execute({
-      sql: `UPDATE Payment SET ${setClauses.join(', ')} WHERE id = ?`,
-      args,
-    });
-
-    // Update patient balanceDue
-    await crm.execute({
-      sql: `UPDATE Patient SET balanceDue = (
-        SELECT COALESCE(SUM(balanceAmount), 0) FROM Payment WHERE patientId = Patient.id AND status IN ('pending', 'partial')
-      ), updatedAt = CURRENT_TIMESTAMP
-      WHERE id = (SELECT patientId FROM Payment WHERE id = ?)`,
-      args: [v.id],
-    });
+    // Update payment + patient balanceDue atomically via batch
+    await crm.batch([
+      {
+        sql: `UPDATE Payment SET ${setClauses.join(', ')} WHERE id = ?`,
+        args,
+      },
+      {
+        sql: `UPDATE Patient SET balanceDue = (
+          SELECT COALESCE(SUM(balanceAmount), 0) FROM Payment WHERE patientId = Patient.id AND status IN ('pending', 'partial')
+        ), updatedAt = CURRENT_TIMESTAMP
+        WHERE id = (SELECT patientId FROM Payment WHERE id = ?)`,
+        args: [v.id],
+      },
+    ]);
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -775,7 +776,17 @@ export default function AdminPage() {
 
               {/* Platform Configurations */}
               <Card>
-                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-5 w-5" /> Platform Configuration</CardTitle><CardDescription>Connect your social media accounts. Each auto-generated blog post will be shared to all enabled platforms.</CardDescription></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2"><Globe className="h-5 w-5" /> Platform Configuration</CardTitle>
+                    <CardDescription>Connect your social media accounts. Each auto-generated blog post will be shared to all enabled platforms.</CardDescription>
+                  </div>
+                  <Link href="/rajeshark/social">
+                    <Button variant="outline" size="sm" className="text-teal-600 border-teal-200 hover:bg-teal-50">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" /> Full Social Page
+                    </Button>
+                  </Link>
+                </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Facebook */}
                   <PlatformConfigCard

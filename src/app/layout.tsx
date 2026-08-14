@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     canonical: "https://mouthcaresolutions.com",
   },
   verification: {
-    google: "your-google-verification-code",
+    // google: "PLACEHOLDER_UPDATE_WITH_REAL_CODE", // TODO: Add your Google Search Console verification code
   },
 };
 

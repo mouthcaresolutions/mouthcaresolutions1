@@ -129,22 +129,7 @@ export async function POST(request: NextRequest) {
     const patient = patientResult.rows[0];
     const patientName = `${patient.firstName}${patient.lastName ? ' ' + patient.lastName : ''}`;
 
-    // Generate sequential appointmentId: MCS-APT-NNNN
-    const lastAppt = await crm.execute({
-      sql: "SELECT appointmentId FROM Appointment WHERE appointmentId LIKE 'MCS-APT-%' ORDER BY appointmentId DESC LIMIT 1",
-      args: [],
-    });
-
-    let nextNum = 1;
-    if (lastAppt.rows.length > 0) {
-      const lastId = lastAppt.rows[0].appointmentId as string;
-      const lastNum = parseInt(lastId.replace('MCS-APT-', ''), 10);
-      if (!isNaN(lastNum)) {
-        nextNum = lastNum + 1;
-      }
-    }
-
-    const appointmentId = `MCS-APT-${String(nextNum).padStart(4, '0')}`;
+    // Generate appointmentId atomically via subquery to avoid race condition
     const id = 'apt_' + crypto.randomBytes(12).toString('hex');
 
     // Get doctor name if doctorId provided
@@ -178,10 +163,13 @@ export async function POST(request: NextRequest) {
       sql: `INSERT INTO Appointment (
         id, appointmentId, patientId, patientName, doctorId, doctorName,
         date, time, endTime, duration, status, treatmentType, reason, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (
+        ?,
+        'MCS-APT-' || printf('%04d', COALESCE((SELECT MAX(CAST(SUBSTR(appointmentId, -4) AS INTEGER)) FROM Appointment WHERE appointmentId LIKE 'MCS-APT-%'), 0) + 1),
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      )`,
       args: [
         id,
-        appointmentId,
         v.patientId,
         patientName,
         v.doctorId ?? null,
@@ -196,6 +184,13 @@ export async function POST(request: NextRequest) {
         v.notes ?? null,
       ],
     });
+
+    // Fetch the generated appointmentId for the response
+    const inserted = await crm.execute({
+      sql: 'SELECT appointmentId FROM Appointment WHERE id = ?',
+      args: [id],
+    });
+    const appointmentId = inserted.rows[0]?.appointmentId as string;
 
     return NextResponse.json(
       {

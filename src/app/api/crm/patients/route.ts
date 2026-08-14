@@ -120,25 +120,8 @@ export async function POST(request: NextRequest) {
     const v = parsed.data;
     const crm = getCRM();
 
-    // Generate sequential patientId: MCS-YYYY-NNN
+    // Generate sequential patientId atomically via subquery to avoid race condition
     const year = new Date().getFullYear().toString();
-    const prefix = `MCS-${year}-`;
-
-    const lastPatient = await crm.execute({
-      sql: 'SELECT patientId FROM Patient WHERE patientId LIKE ? ORDER BY patientId DESC LIMIT 1',
-      args: [`${prefix}%`],
-    });
-
-    let nextNum = 1;
-    if (lastPatient.rows.length > 0) {
-      const lastId = lastPatient.rows[0].patientId as string;
-      const lastNum = parseInt(lastId.replace(prefix, ''), 10);
-      if (!isNaN(lastNum)) {
-        nextNum = lastNum + 1;
-      }
-    }
-
-    const patientId = `${prefix}${String(nextNum).padStart(3, '0')}`;
     const id = 'pat_' + crypto.randomBytes(12).toString('hex');
 
     await crm.execute({
@@ -150,12 +133,15 @@ export async function POST(request: NextRequest) {
         emergencyContactPhone, insuranceProvider, insuranceNumber,
         category, photo, notes, totalVisits, totalSpent, balanceDue
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?,
+        'MCS-' || ? || '-' || printf('%03d', COALESCE((SELECT MAX(CAST(SUBSTR(patientId, -3) AS INTEGER)) FROM Patient WHERE patientId LIKE 'MCS-' || ? || '-%'), 0) + 1),
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )`,
       args: [
         id,
-        patientId,
+        year,
+        year,
         v.firstName,
         v.lastName ?? null,
         v.phone,
@@ -187,6 +173,13 @@ export async function POST(request: NextRequest) {
         0,
       ],
     });
+
+    // Fetch the generated patientId for the response
+    const inserted = await crm.execute({
+      sql: 'SELECT patientId FROM Patient WHERE id = ?',
+      args: [id],
+    });
+    const patientId = inserted.rows[0]?.patientId as string;
 
     return NextResponse.json({
       success: true,
