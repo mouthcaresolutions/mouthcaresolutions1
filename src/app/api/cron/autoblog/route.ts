@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
 import { fetchBlogImage, prependImageToContent } from '@/lib/fetch-blog-image';
+import { sanitizeContent } from '@/lib/sanitize';
 
 const TREATMENTS = [
   { name: 'Root Canal Treatment', keywords: ['root canal', 'endodontic', 'root canal treatment vijayawada'] },
@@ -178,13 +179,12 @@ STRUCTURE: Use H2/H3 headings. Include: What is ${treatment.name}, why it's impo
       console.error('Image fetch failed:', imgErr);
     }
 
-    // CRITICAL FIX #6: Create as draft, do NOT share to social media
-    // Social sharing only happens when admin explicitly publishes
+    // SEC-H06 FIX: Sanitize all content before storage
     const newPost = await blogDb.createBlogPost({
       slug,
       title,
-      content: finalContent,
-      excerpt,
+      content: sanitizeContent(finalContent),
+      excerpt: sanitizeContent(excerpt),
       metaDesc: excerpt.substring(0, 160),
       metaTitle: title,
       category,

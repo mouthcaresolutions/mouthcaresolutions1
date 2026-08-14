@@ -10,19 +10,23 @@ const contactSchema = z.object({
   message: z.string().min(10).max(2000).trim(),
 });
 
-// CRITICAL FIX #3: In-memory rate limiting note — this is a known limitation
-// in serverless. For production, use Vercel KV, Upstash Redis, or similar.
-// The current implementation still provides some protection within a single
-// serverless instance's lifetime.
-const contactAttempts = new Map<string, { count: number; windowStart: number }>();
+// SEC-L02 FIX: Attach rate limiter to globalThis for serverless persistence
 const CONTACT_LIMIT = 3;
 const CONTACT_WINDOW = 60 * 60 * 1000; // 1 hour
 
+function getContactRateLimiter() {
+  if (!globalThis._contactRateLimiter) {
+    globalThis._contactRateLimiter = new Map<string, { count: number; windowStart: number }>();
+  }
+  return globalThis._contactRateLimiter as Map<string, { count: number; windowStart: number }>;
+}
+
 function checkContactRateLimit(ip: string): boolean {
+  const limiter = getContactRateLimiter();
   const now = Date.now();
-  const record = contactAttempts.get(ip);
+  const record = limiter.get(ip);
   if (!record || now - record.windowStart > CONTACT_WINDOW) {
-    contactAttempts.set(ip, { count: 1, windowStart: now });
+    limiter.set(ip, { count: 1, windowStart: now });
     return true;
   }
   return record.count < CONTACT_LIMIT;
@@ -51,23 +55,14 @@ export async function POST(request: NextRequest) {
 
     const { name, email, phone, message } = parsed.data;
 
-    // Store in CRM database as a lead
+    // SEC-H08 FIX: Only store in ContactMessage table, NOT in CRMPatient.
+    // Previous code inserted into CRMPatient, allowing spam bots to pollute CRM with fake patient records.
     const crm = getCRM();
-    const leadId = 'lead_' + crypto.randomBytes(8).toString('hex');
-
-    await crm.execute({
-      sql: `INSERT INTO CRMPatient (id, name, phone, email, createdAt)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      args: [leadId, name, phone || null, email],
-    });
-
-    // MEDIUM #11 FIX: Store message in ContactMessage table (assumed to already exist
-    // from setup script). Removed CREATE TABLE IF NOT EXISTS that ran on every request.
     const msgId = 'msg_' + crypto.randomBytes(8).toString('hex');
     await crm.execute({
-      sql: `INSERT INTO ContactMessage (id, patientId, name, email, phone, message)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [msgId, leadId, name, email, phone || null, message],
+      sql: `INSERT INTO ContactMessage (id, name, email, phone, message)
+            VALUES (?, ?, ?, ?, ?)`,
+      args: [msgId, name, email, phone || null, message],
     });
 
     return NextResponse.json({ success: true, message: 'Message received. We will contact you shortly.' });

@@ -213,11 +213,10 @@ export default function PatientProfilePage(props: {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) throw new Error('Authentication required. Please log in.');
+      // SEC-C05 FIX: Cookie auth handled by middleware
 
       const res = await fetch(`/api/crm/patient/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
 
       if (!res.ok) {

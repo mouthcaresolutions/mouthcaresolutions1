@@ -30,26 +30,14 @@ function useAuthGuard() {
   useEffect(() => {
     async function verify() {
       try {
-        // Check for token in cookie or localStorage
-        const token = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('admin_token='))
-          ?.split('=')[1]
-          || localStorage.getItem('admin_token');
-
-        if (!token) {
-          router.replace('/rajeshark/login');
-          return;
-        }
-
         const res = await fetch('/api/admin/auth', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'verify', token }),
+          body: JSON.stringify({ action: 'verify' }),
         });
 
         if (!res.ok) {
-          localStorage.removeItem('admin_token');
           router.replace('/rajeshark/login');
           return;
         }

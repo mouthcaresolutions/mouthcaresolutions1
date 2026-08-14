@@ -3,6 +3,7 @@ import * as blogDb from '@/lib/blog-db';
 import { validateSession } from '@/lib/auth';
 import { autoShareNewPost } from '@/lib/social-poster';
 import { fetchBlogImage, prependImageToContent } from '@/lib/fetch-blog-image';
+import { sanitizeContent } from '@/lib/sanitize';
 
 const ALL_TREATMENTS = [
   { name: 'Root Canal Treatment', keywords: ['root canal', 'endodontic', 'pulp therapy', 'root canal treatment vijayawada', 'painless root canal'] },
@@ -215,8 +216,17 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
     // Call the Z.ai API directly via fetch with auth headers
-    const baseUrl = process.env.ZAI_BASE_URL || 'https://internal-api.z.ai/v1';
-    const apiKey = process.env.ZAI_API_KEY || 'Z.ai';
+    // SEC-C02 FIX: No hardcoded fallbacks — all credentials must come from env vars
+    const baseUrl = process.env.ZAI_BASE_URL;
+    const apiKey = process.env.ZAI_API_KEY;
+    const chatId = process.env.ZAI_CHAT_ID;
+    const userId = process.env.ZAI_USER_ID;
+    const zaiToken = process.env.ZAI_TOKEN;
+
+    if (!baseUrl || !apiKey || !chatId || !userId || !zaiToken) {
+      throw new Error('Missing Z.ai API credentials. Set ZAI_BASE_URL, ZAI_API_KEY, ZAI_CHAT_ID, ZAI_USER_ID, ZAI_TOKEN env vars.');
+    }
+
     const prompt = generatePrompt(title, treatment, keywords, category);
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -225,9 +235,9 @@ async function generateArticle(title: string, treatment: string, keywords: strin
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'X-Z-AI-From': 'Z',
-        'X-Chat-Id': process.env.ZAI_CHAT_ID || 'chat-ae95fa55-0754-4476-bbb6-c071fc7cf845',
-        'X-User-Id': process.env.ZAI_USER_ID || 'e97277a1-c615-4b11-80ce-20c20af11a6a',
-        'X-Token': process.env.ZAI_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZTk3Mjc3YTEtYzYxNS00YjExLTgwY2UtMjBjMjBhZjExYTZhIiwiY2hhdF9pZCI6ImNoYXQtYWU5NWZhNTUtMDc1NC00NDc2LWJiYjYtYzA3MWZjN2NmODQ1IiwicGxhdGZvcm0iOiJ6YWkifQ.M1rZhOKoIzW2hCBPX59AU1Ule5TNkPfa3rlHTuQ9IXw',
+        'X-Chat-Id': chatId,
+        'X-User-Id': userId,
+        'X-Token': zaiToken,
       },
       body: JSON.stringify({
         model: 'glm-4-flash',
@@ -276,7 +286,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ config, logs, treatments: ALL_TREATMENTS.map(t => t.name) });
   } catch (error) {
     console.error('Autoblogger GET error:', error);
-    return NextResponse.json({ error: 'Failed', detail: (error as any)?.message || String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load autoblogger data' }, { status: 500 });
   }
 }
 
@@ -350,8 +360,9 @@ export async function POST(request: NextRequest) {
             const newPost = await blogDb.createBlogPost({
               slug,
               title,
-              content: contentWithImage,
-              excerpt: result.excerpt,
+              // SEC-H06 FIX: Sanitize AI-generated content before storage
+              content: sanitizeContent(contentWithImage),
+              excerpt: sanitizeContent(result.excerpt),
               metaDesc: result.metaDesc,
               metaTitle: title,
               category,
@@ -438,8 +449,9 @@ export async function POST(request: NextRequest) {
             await blogDb.createBlogPost({
               slug,
               title: uniqueTitle,
-              content: result.content,
-              excerpt: result.excerpt,
+              // SEC-H06 FIX: Sanitize AI-generated content before storage
+              content: sanitizeContent(result.content),
+              excerpt: sanitizeContent(result.excerpt),
               metaDesc: result.metaDesc,
               metaTitle: uniqueTitle,
               category,
@@ -480,6 +492,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Autoblogger POST error:', error);
-    return NextResponse.json({ error: 'Failed', detail: (error as any)?.message || String(error) }, { status: 500 });
+    // SEC-M08 FIX: Don't leak internal error details to client
+    return NextResponse.json({ error: 'Operation failed' }, { status: 500 });
   }
 }

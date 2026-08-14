@@ -221,13 +221,9 @@ export default function AppointmentManagementPage() {
   // ============================================================
   // Auth helper
   // ============================================================
+  // SEC-C05 FIX: Cookie-based auth — middleware validates httpOnly cookie
   const getHeaders = useCallback(() => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("admin_token")
-        : null;
     return {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   }, []);
@@ -240,15 +236,7 @@ export default function AppointmentManagementPage() {
       setLoading(true);
       setError(null);
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("admin_token")
-            : null;
-        if (!token) {
-          setError("Authentication required. Please log in.");
-          setLoading(false);
-          return;
-        }
+          // SEC-C05 FIX: Cookie auth handled by middleware
 
         const params = new URLSearchParams();
         if (dateFilter) params.set("date", dateFilter);
@@ -258,8 +246,8 @@ export default function AppointmentManagementPage() {
         params.set("limit", "50");
 
         const res = await fetch(`/api/crm/appointments?${params.toString()}`, {
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });

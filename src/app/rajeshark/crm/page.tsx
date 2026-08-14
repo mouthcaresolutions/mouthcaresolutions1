@@ -258,21 +258,9 @@ export default function CRMDashboard() {
     setError(null);
 
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("admin_token")
-          : null;
-
-      if (!token) {
-        setError("Authentication required. Please log in.");
-        setLoading(false);
-        return;
-      }
-
+      // SEC-C05 FIX: Cookie auth handled by middleware
       const res = await fetch("/api/crm/dashboard", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       if (res.status === 401) {

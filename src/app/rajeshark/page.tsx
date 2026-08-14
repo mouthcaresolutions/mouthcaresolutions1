@@ -56,7 +56,7 @@ type Tab = "dashboard" | "posts" | "autoblogger" | "newpost" | "social";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [token, setToken] = useState("");
+  const [verified, setVerified] = useState(false);
   const [user, setUser] = useState<{ username: string; name: string; role: string } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [loading, setLoading] = useState(true);
@@ -102,98 +102,106 @@ export default function AdminPage() {
   const [testResult, setTestResult] = useState<string>("");
   const [autoShareLoading, setAutoShareLoading] = useState(false);
 
-  const getToken = useCallback(() => localStorage.getItem("admin_token") || "", []);
-
   useEffect(() => {
-    const t = getToken();
-    const u = localStorage.getItem("admin_user");
-    if (!t || !u) {
-      router.push("/rajeshark/login");
-      return;
+    async function verify() {
+      try {
+        const res = await fetch("/api/admin/auth", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "verify" }),
+        });
+        if (!res.ok) {
+          router.push("/rajeshark/login");
+          return;
+        }
+        const data = await res.json();
+        setUser({ username: data.username, name: data.name, role: data.role });
+        setVerified(true);
+        setLoading(false);
+      } catch {
+        router.push("/rajeshark/login");
+      }
     }
-    // Defer setState to avoid synchronous setState in effect
-    queueMicrotask(() => {
-      setToken(t);
-      setUser(JSON.parse(u));
-      setLoading(false);
-    });
-  }, [getToken, router]);
+    verify();
+  }, [router]);
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/stats", { headers: { Authorization: `Bearer ${getToken()}` } });
+      const res = await fetch("/api/admin/stats", { credentials: "include" });
       if (res.status === 401) { router.push("/rajeshark/login"); return; }
       const data = await res.json();
       setStats(data);
     } catch (e) { console.error(e); }
-  }, [getToken, router]);
+  }, [router]);
 
   const fetchPosts = useCallback(async () => {
     try {
       const params = new URLSearchParams({ page: postPage.toString(), limit: "15" });
       if (postFilter !== "All") params.set("category", postFilter);
       if (postSearch) params.set("search", postSearch);
-      const res = await fetch(`/api/admin/posts?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      const res = await fetch(`/api/admin/posts?${params}`, { credentials: "include" });
       if (res.status === 401) { router.push("/rajeshark/login"); return; }
       const data = await res.json();
       setPosts(data.posts || []);
       setPostTotal(data.total || 0);
     } catch (e) { console.error(e); }
-  }, [getToken, router, postPage, postFilter, postSearch]);
+  }, [router, postPage, postFilter, postSearch]);
 
   const fetchBlogger = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/autoblogger", { headers: { Authorization: `Bearer ${getToken()}` } });
+      const res = await fetch("/api/admin/autoblogger", { credentials: "include" });
       if (res.status === 401) { router.push("/rajeshark/login"); return; }
       const data = await res.json();
       setBloggerConfig(data.config);
       setBloggerLogs(data.logs || []);
       setBloggerTreatments(data.treatments || []);
     } catch (e) { console.error(e); }
-  }, [getToken, router]);
+  }, [router]);
 
   const fetchSocial = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/social", { headers: { Authorization: `Bearer ${getToken()}` } });
+      const res = await fetch("/api/admin/social", { credentials: "include" });
       if (res.status === 401) { router.push("/rajeshark/login"); return; }
       const data = await res.json();
       setSocialConfigs(data.configs || []);
       setSocialLogs(data.logs || []);
     } catch (e) { console.error(e); }
-  }, [getToken, router]);
+  }, [router]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!verified) return;
     const load = async () => { try { await fetchStats(); } catch(e) { /* ignore */ } };
     load();
-  }, [token]);
+  }, [verified]);
 
   useEffect(() => {
-    if (!token || activeTab !== "posts") return;
+    if (!verified || activeTab !== "posts") return;
     const load = async () => { try { await fetchPosts(); } catch(e) { /* ignore */ } };
     load();
-  }, [token, activeTab]);
+  }, [verified, activeTab]);
 
   useEffect(() => {
-    if (!token || activeTab !== "autoblogger") return;
+    if (!verified || activeTab !== "autoblogger") return;
     const load = async () => { try { await fetchBlogger(); } catch(e) { /* ignore */ } };
     load();
-  }, [token, activeTab]);
+  }, [verified, activeTab]);
 
   useEffect(() => {
-    if (!token || activeTab !== "social") return;
+    if (!verified || activeTab !== "social") return;
     const load = async () => { try { await fetchSocial(); } catch(e) { /* ignore */ } };
     load();
-  }, [token, activeTab]);
+  }, [verified, activeTab]);
 
-  const logout = () => {
-    fetch("/api/admin/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "logout", token }),
-    });
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_user");
+  const logout = async () => {
+    try {
+      await fetch("/api/admin/auth", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } catch { /* ignore */ }
     router.push("/rajeshark/login");
   };
 
@@ -201,7 +209,7 @@ export default function AdminPage() {
     if (!confirm("Delete this post?")) return;
     await fetch(`/api/admin/posts?id=${id}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken()}` },
+      credentials: "include",
     });
     fetchPosts();
   };
@@ -210,7 +218,8 @@ export default function AdminPage() {
     const newStatus = post.status === "published" ? "draft" : "published";
     await fetch("/api/admin/posts", {
       method: "PUT",
-      headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: post.id, status: newStatus }),
     });
     fetchPosts();
@@ -222,7 +231,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/posts", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle, content: newContent, excerpt: newExcerpt,
           category: newCategory, keywords: newKeywords, status: newStatus,
@@ -244,7 +254,8 @@ export default function AdminPage() {
     try {
       await fetch("/api/admin/posts", {
         method: "PUT",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingPost),
       });
       setEditingPost(null);
@@ -258,7 +269,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/autoblogger", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "generateNow", count }),
       });
       const data = await res.json();
@@ -276,7 +288,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/autoblogger", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "bulkGenerate", treatmentName: bulkTreatment, count: bulkCount }),
       });
       const data = await res.json();
@@ -291,7 +304,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/autoblogger", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "updateConfig", ...updates }),
       });
       const data = await res.json();
@@ -305,7 +319,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/social", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "saveConfig", platform, ...updates }),
       });
       const data = await res.json();
@@ -320,7 +335,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/social", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "testConnection", platform }),
       });
       const data = await res.json();
@@ -335,7 +351,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/social", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "sharePost", postId, platforms }),
       });
       const data = await res.json();
@@ -350,7 +367,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/social", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "autoShare", count }),
       });
       const data = await res.json();

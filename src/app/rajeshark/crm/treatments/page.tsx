@@ -126,10 +126,9 @@ export default function TreatmentsPage() {
   // ============================================================
   // Auth helper
   // ============================================================
+  // SEC-C05 FIX: Cookie-based auth — middleware validates httpOnly cookie
   const getHeaders = useCallback(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
     return {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   }, []);
@@ -141,18 +140,12 @@ export default function TreatmentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
-      if (!token) {
-        setError("Authentication required. Please log in.");
-        setLoading(false);
-        return;
-      }
-
+      // SEC-C05 FIX: Cookie auth handled by middleware
       const params = new URLSearchParams();
       if (activeCategory !== "All") params.set("category", activeCategory);
 
       const res = await fetch(`/api/crm/treatments?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        credentials: 'include', headers: { "Content-Type": "application/json" },
       });
 
       if (res.status === 401) {
@@ -242,6 +235,7 @@ export default function TreatmentsPage() {
       const method = editMode ? "PUT" : "POST";
       const res = await fetch("/api/crm/treatments", {
         method,
+        credentials: 'include',
         headers: getHeaders(),
         body: JSON.stringify(body),
       });

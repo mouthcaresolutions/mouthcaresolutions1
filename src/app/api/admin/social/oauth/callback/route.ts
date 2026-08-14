@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
 import { exchangeOAuthCode } from '@/lib/social-poster';
+import { validateOAuthState } from '@/lib/oauth-state';
 
 /**
  * OAuth callback for Facebook and Google Business.
  * 1. Admin clicks "Connect" -> OAuth popup opens
- * 2. User authorizes -> redirected here with ?code=...&state=platform
- * 3. We exchange code for tokens and save to DB
- * 4. Redirect to admin social page with success/error param
+ * 2. User authorizes -> redirected here with ?code=...&state=randomToken
+ * 3. SEC-C07 FIX: Validate state as CSRF token, extract platform
+ * 4. Exchange code for tokens and save to DB
+ * 5. Redirect to admin social page with success/error param
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
-    const platform = searchParams.get('state');
+    const rawState = searchParams.get('state');
     const error = searchParams.get('error');
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mouthcaresolutions.com';
@@ -22,8 +24,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${siteUrl}/rajeshark/social?oauth_error=${encodeURIComponent(error)}`);
     }
 
-    if (!code || !platform) {
+    if (!code || !rawState) {
       return NextResponse.redirect(`${siteUrl}/rajeshark/social?oauth_error=missing_params`);
+    }
+
+    // SEC-C07 FIX: Validate OAuth state as CSRF token
+    const platform = validateOAuthState(rawState);
+    if (!platform) {
+      return NextResponse.redirect(`${siteUrl}/rajeshark/social?oauth_error=invalid_state`);
     }
 
     const config = await blogDb.getSocialConfig(platform);

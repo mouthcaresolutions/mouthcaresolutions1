@@ -28,8 +28,8 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        localStorage.setItem("admin_token", data.token);
-        localStorage.setItem("admin_user", JSON.stringify(data.user));
+        // SEC-C05 FIX: Token is already set as httpOnly cookie by the server.
+        // No localStorage usage — prevents XSS token theft.
         window.location.href = "/rajeshark";
       } else {
         setError(data.error || "Login failed");

@@ -208,12 +208,7 @@ export default function PatientManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
-      if (!token) {
-        setError("Authentication required. Please log in.");
-        setLoading(false);
-        return;
-      }
+      // SEC-C05 FIX: Cookie auth handled by middleware
 
       const params = new URLSearchParams();
       if (search) params.set("search", search);
@@ -222,8 +217,8 @@ export default function PatientManagementPage() {
       params.set("limit", "20");
 
       const res = await fetch(`/api/crm/patients?${params.toString()}`, {
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
@@ -314,12 +309,7 @@ export default function PatientManagementPage() {
     if (!validateForm()) return;
     setSubmitting(true);
     try {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        setError("Authentication required.");
-        return;
-      }
-
+    // SEC-C05 FIX: Cookie auth handled by middleware
       const age = calcAgeFromDOB(form.dateOfBirth);
       const payload = {
         ...form,
@@ -350,8 +340,8 @@ export default function PatientManagementPage() {
 
       const res = await fetch("/api/crm/patients", {
         method: "POST",
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),

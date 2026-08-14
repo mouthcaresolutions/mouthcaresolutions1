@@ -36,7 +36,15 @@ async function verifyJWTEdge(token: string): Promise<{ username: string; role: s
     const expectedSig = btoa(String.fromCharCode(...new Uint8Array(sig)))
       .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-    if (signature !== expectedSig) {
+    // SEC-H01 FIX: Timing-safe comparison to prevent timing side-channel attacks
+    if (signature.length !== expectedSig.length) {
+      return null;
+    }
+    let result = 0;
+    for (let i = 0; i < signature.length; i++) {
+      result |= signature.charCodeAt(i) ^ expectedSig.charCodeAt(i);
+    }
+    if (result !== 0) {
       return null;
     }
 

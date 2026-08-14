@@ -96,35 +96,22 @@ function useAuthGuard() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [verified, setVerified] = useState(false);
-  const [token, setToken] = useState('');
-
   useEffect(() => {
     async function verify() {
       try {
-        const t =
-          document.cookie
-            .split('; ')
-            .find((row) => row.startsWith('admin_token='))
-            ?.split('=')[1] || localStorage.getItem('admin_token') || '';
-
-        if (!t) {
-          router.replace('/rajeshark/login');
-          return;
-        }
-
+        // SEC-C05 FIX: Cookie auth — verify via httpOnly cookie
         const res = await fetch('/api/admin/auth', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'verify', token: t }),
+          body: JSON.stringify({ action: 'verify' }),
         });
 
         if (!res.ok) {
-          localStorage.removeItem('admin_token');
           router.replace('/rajeshark/login');
           return;
         }
 
-        setToken(t);
         setVerified(true);
       } catch {
         router.replace('/rajeshark/login');
@@ -135,14 +122,14 @@ function useAuthGuard() {
     verify();
   }, [router]);
 
-  return { verified, checking, token };
+  return { verified, checking };
 }
 
 // ==================== MAIN PAGE ====================
 
 export default function SocialConnectionsPage() {
   const router = useRouter();
-  const { verified, checking, token } = useAuthGuard();
+  const { verified, checking } = useAuthGuard();
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -156,7 +143,7 @@ export default function SocialConnectionsPage() {
   const fetchPlatforms = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/social-accounts', {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       if (res.status === 401) {
         router.replace('/rajeshark/login');
@@ -169,11 +156,11 @@ export default function SocialConnectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, router]);
+  }, [router]);
 
   useEffect(() => {
-    if (verified && token) fetchPlatforms();
-  }, [verified, token, fetchPlatforms]);
+    if (verified) fetchPlatforms();
+  }, [verified, fetchPlatforms]);
 
   // Save credentials
   const handleSave = async () => {
@@ -188,7 +175,7 @@ export default function SocialConnectionsPage() {
 
       const res = await fetch('/api/admin/social-accounts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'saveTokens', platform: selectedPlatform.id, ...updates }),
       });
       const data = await res.json();
@@ -213,7 +200,7 @@ export default function SocialConnectionsPage() {
     try {
       await fetch('/api/admin/social-accounts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'toggleEnabled', platform: platformId, enabled }),
       });
       fetchPlatforms();
@@ -228,7 +215,7 @@ export default function SocialConnectionsPage() {
     try {
       await fetch('/api/admin/social-accounts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'disconnect', platform: platformId }),
       });
       fetchPlatforms();

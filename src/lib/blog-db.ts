@@ -1,4 +1,34 @@
 import { createClient } from '@libsql/client';
+import crypto from 'crypto';
+
+// SEC-C03 FIX: Strict column allowlists to prevent SQL injection via column names
+const BLOG_POST_COLUMNS = new Set([
+  'title', 'content', 'excerpt', 'metaDesc', 'metaTitle',
+  'category', 'keywords', 'status', 'author', 'scheduledAt',
+]);
+
+const AUTOBLOGGER_CONFIG_COLUMNS = new Set([
+  'enabled', 'postsPerDay', 'categories', 'status',
+  'totalGenerated', 'failedCount', 'lastRunAt', 'nextRunAt',
+]);
+
+const SOCIAL_CONFIG_COLUMNS = new Set([
+  'enabled', 'accessToken', 'refreshToken', 'extraConfig',
+  'totalPosts', 'lastRefreshedAt',
+]);
+
+function filterColumns(data: Record<string, any>, allowed: Set<string>): Record<string, any> {
+  const filtered: Record<string, any> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (allowed.has(k)) filtered[k] = v;
+  }
+  return filtered;
+}
+
+// SEC-M01 FIX: Use crypto.randomBytes instead of Math.random() for IDs
+function generateId(prefix: string): string {
+  return prefix + crypto.randomBytes(8).toString('hex') + Date.now().toString(36);
+}
 
 // Direct libsql connection for blog/autoblogger — bypasses Prisma entirely
 function getBlogDb() {
@@ -16,8 +46,11 @@ export async function getAutoBloggerConfig() {
 
 export async function updateAutoBloggerConfig(id: string, data: Record<string, any>) {
   const db = getBlogDb();
-  const sets = Object.entries(data).map(([k, v]) => `"${k}" = ?`).join(', ');
-  const values = Object.values(data);
+  // SEC-C03 FIX: Filter columns against allowlist
+  const filtered = filterColumns(data, AUTOBLOGGER_CONFIG_COLUMNS);
+  if (Object.keys(filtered).length === 0) return;
+  const sets = Object.entries(filtered).map(([k, v]) => `"${k}" = ?`).join(', ');
+  const values = Object.values(filtered);
   await db.execute({
     sql: `UPDATE AutoBloggerConfig SET ${sets}, "updatedAt" = CURRENT_TIMESTAMP WHERE id = ?`,
     args: [...values, id],
@@ -41,7 +74,7 @@ export async function createAutoBloggerLog(data: {
   duration: number;
 }) {
   const db = getBlogDb();
-  const id = 'log_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  const id = generateId('log_');
   await db.execute({
     sql: 'INSERT INTO AutoBloggerLog (id, status, "postsCreated", "postsFailed", error, duration, "ranAt") VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
     args: [id, data.status, data.postsCreated, data.postsFailed, data.error || null, data.duration],
@@ -62,7 +95,7 @@ export async function createBlogPost(data: {
   scheduledAt: string;
 }) {
   const db = getBlogDb();
-  const id = 'bp_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  const id = generateId('bp_');
   await db.execute({
     sql: 'INSERT INTO BlogPost (id, slug, title, content, excerpt, "metaDesc", "metaTitle", category, keywords, status, author, "scheduledAt", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
     args: [
@@ -120,7 +153,8 @@ export async function getPublishedPosts(page: number, limit: number, category: s
 
   const [postsResult, countResult] = await Promise.all([
     db.execute({
-      sql: `SELECT id, slug, title, "metaTitle", "metaDesc", excerpt, category, keywords, "scheduledAt", "createdAt", content FROM BlogPost ${whereClause} ORDER BY "scheduledAt" DESC LIMIT ? OFFSET ?`,
+      // SEC-H07 FIX: Exclude content field from listing queries (prevents mass scraping + reduces payload)
+      sql: `SELECT id, slug, title, "metaTitle", "metaDesc", excerpt, category, keywords, "scheduledAt", "createdAt" FROM BlogPost ${whereClause} ORDER BY "scheduledAt" DESC LIMIT ? OFFSET ?`,
       args: [...args, limit, offset],
     }),
     db.execute({
@@ -189,8 +223,11 @@ export async function getPostById(id: string) {
 
 export async function updateBlogPost(id: string, data: Record<string, any>) {
   const db = getBlogDb();
-  const sets = Object.entries(data).map(([k, v]) => `"${k}" = ?`).join(', ');
-  const values = Object.values(data);
+  // SEC-C03 FIX: Filter columns against allowlist
+  const filtered = filterColumns(data, BLOG_POST_COLUMNS);
+  if (Object.keys(filtered).length === 0) return getPostById(id);
+  const sets = Object.entries(filtered).map(([k, v]) => `"${k}" = ?`).join(', ');
+  const values = Object.values(filtered);
   await db.execute({
     sql: `UPDATE BlogPost SET ${sets}, "updatedAt" = CURRENT_TIMESTAMP WHERE id = ?`,
     args: [...values, id],
@@ -266,7 +303,7 @@ export async function getAllSocialConfigs() {
 
 export async function createSocialConfig(platform: string) {
   const db = getBlogDb();
-  const id = 'smc_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  const id = generateId('smc_');
   await db.execute({
     sql: 'INSERT INTO SocialMediaConfig (id, platform, enabled, "totalPosts", "createdAt", "updatedAt") VALUES (?, ?, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
     args: [id, platform],
@@ -275,8 +312,11 @@ export async function createSocialConfig(platform: string) {
 
 export async function updateSocialConfig(platform: string, data: Record<string, any>) {
   const db = getBlogDb();
-  const sets = Object.entries(data).map(([k, v]) => `"${k}" = ?`).join(', ');
-  const values = Object.values(data);
+  // SEC-C03 FIX: Filter columns against allowlist
+  const filtered = filterColumns(data, SOCIAL_CONFIG_COLUMNS);
+  if (Object.keys(filtered).length === 0) return;
+  const sets = Object.entries(filtered).map(([k, v]) => `"${k}" = ?`).join(', ');
+  const values = Object.values(filtered);
   await db.execute({
     sql: `UPDATE SocialMediaConfig SET ${sets}, "updatedAt" = CURRENT_TIMESTAMP WHERE platform = ?`,
     args: [...values, platform],
@@ -294,7 +334,7 @@ export async function getRecentSocialLogs(limit: number) {
 
 export async function createSocialPostLog(data: { platform: string; blogPostId?: string; title: string; postUrl?: string; socialPostId?: string; status: string; response?: string }) {
   const db = getBlogDb();
-  const id = 'spl_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  const id = generateId('spl_');
   await db.execute({
     sql: 'INSERT INTO SocialPostLog (id, platform, "blogPostId", title, "postUrl", "socialPostId", status, response, "postedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
     args: [id, data.platform, data.blogPostId || null, data.title, data.postUrl || null, data.socialPostId || null, data.status, data.response || null],

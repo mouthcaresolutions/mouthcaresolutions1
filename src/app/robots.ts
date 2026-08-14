@@ -6,7 +6,8 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/'],
+        // SEC-C06 + SEC-M12 FIX: Block admin and API routes from indexing
+        disallow: ['/api/', '/rajeshark'],
       },
     ],
     sitemap: 'https://mouthcaresolutions.com/sitemap.xml',

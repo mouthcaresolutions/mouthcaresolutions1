@@ -1,4 +1,5 @@
 import * as blogDb from './blog-db';
+import { generateOAuthState } from './oauth-state';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://mouthcaresolutions.com';
 
@@ -306,14 +307,16 @@ const POST_FUNCTIONS: Record<string, (config: any, content: PostContent) => Prom
 export function getOAuthUrl(platform: string, config: any): string | null {
   const extra = config.extraConfig ? JSON.parse(config.extraConfig as string) : {};
   const redirectUri = `${SITE_URL}/api/admin/social/oauth/callback`;
+  // SEC-C07 FIX: Use cryptographically random state instead of plain platform name
+  const state = generateOAuthState(platform);
 
   switch (platform) {
     case 'facebook':
       if (!extra.clientId) return null;
-      return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${extra.clientId}&redirect_uri=${redirectUri}&scope=pages_show_list,pages_manage_posts,pages_read_engagement&state=${platform}`;
+      return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${extra.clientId}&redirect_uri=${redirectUri}&scope=pages_show_list,pages_manage_posts,pages_read_engagement&state=${encodeURIComponent(state)}`;
     case 'google_business':
       if (!extra.clientId) return null;
-      return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${extra.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=https://www.googleapis.com/auth/business.manage&access_type=offline&prompt=consent&state=${platform}`;
+      return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${extra.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=https://www.googleapis.com/auth/business.manage&access_type=offline&prompt=consent&state=${encodeURIComponent(state)}`;
     default:
       return null;
   }

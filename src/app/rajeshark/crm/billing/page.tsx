@@ -232,10 +232,9 @@ export default function BillingPage() {
   // ============================================================
   // Auth helper
   // ============================================================
+  // SEC-C05 FIX: Cookie-based auth — middleware validates httpOnly cookie
   const getHeaders = useCallback(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
     return {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   }, []);
@@ -258,12 +257,7 @@ export default function BillingPage() {
       setLoading(true);
       setError(null);
       try {
-        const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
-        if (!token) {
-          setError("Authentication required. Please log in.");
-          setLoading(false);
-          return;
-        }
+        // SEC-C05 FIX: Cookie auth handled by middleware
 
         const params = new URLSearchParams();
         if (statusFilter) params.set("status", statusFilter);
@@ -273,7 +267,7 @@ export default function BillingPage() {
         params.set("limit", "50");
 
         const res = await fetch(`/api/crm/payments?${params.toString()}`, {
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          credentials: 'include', headers: { "Content-Type": "application/json" },
         });
 
         if (res.status === 401) {
@@ -314,7 +308,7 @@ export default function BillingPage() {
   // ============================================================
   const fetchTreatments = useCallback(async () => {
     try {
-      const res = await fetch("/api/crm/treatments", { headers: getHeaders() });
+      const res = await fetch("/api/crm/treatments", { credentials: "include", headers: getHeaders() });
       if (res.ok) {
         const json = await res.json();
         setTreatments(json.treatments ?? []);
@@ -362,7 +356,7 @@ export default function BillingPage() {
     patientSearchRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/crm/patients?search=${encodeURIComponent(value)}&limit=10`, {
-          headers: getHeaders(),
+          credentials: "include", headers: getHeaders(),
         });
         if (res.ok) {
           const json = await res.json();
@@ -433,7 +427,7 @@ export default function BillingPage() {
       const validItems = lineItems.filter((i) => i.treatmentId);
       const res = await fetch("/api/crm/payments", {
         method: "POST",
-        headers: getHeaders(),
+        credentials: "include", headers: getHeaders(),
         body: JSON.stringify({
           patientId: selectedPatient!.id,
           date: getToday(),
@@ -488,7 +482,7 @@ export default function BillingPage() {
     try {
       const res = await fetch("/api/crm/payments", {
         method: "PUT",
-        headers: getHeaders(),
+        credentials: "include", headers: getHeaders(),
         body: JSON.stringify({
           id: payingPayment.id,
           addPayment: recordAmount,

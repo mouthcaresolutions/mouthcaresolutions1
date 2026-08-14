@@ -15,7 +15,8 @@ function getDb() {
 // Legacy SHA-256 verification (for migration from old hash format)
 function verifyLegacySHA256(password: string, hash: string): boolean {
   try {
-    const LEGACY_SALT = 'MCS@2024Secure';
+    // SEC-C01: Legacy salt moved to env var (with hardcoded fallback for migration)
+    const LEGACY_SALT = process.env.LEGACY_PASSWORD_SALT || 'MCS@2024Secure';
     const salted = crypto.createHash('sha256').update(`${password}:${LEGACY_SALT}`).digest('hex');
     if (salted === hash) return true;
     const plain = crypto.createHash('sha256').update(password).digest('hex');
@@ -38,12 +39,12 @@ const loginSchema = z.object({
 
 const verifySchema = z.object({
   action: z.literal('verify'),
-  token: z.string().min(1),
+  token: z.string().min(1).optional(),
 });
 
 const logoutSchema = z.object({
   action: z.literal('logout'),
-  token: z.string().min(1),
+  token: z.string().min(1).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -114,7 +115,8 @@ export async function POST(request: NextRequest) {
       response.cookies.set('admin_token', sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        // SEC-M02 FIX: Use strict sameSite for admin cookie
+        sameSite: 'strict',
         path: '/',
         maxAge: 60 * 60 * 24,
       });
@@ -125,7 +127,10 @@ export async function POST(request: NextRequest) {
     if (action === 'verify') {
       const parsed = verifySchema.safeParse(body);
       if (!parsed.success) return NextResponse.json({ valid: false }, { status: 401 });
-      const u = await validateSession(parsed.data.token);
+      // SEC-C05 FIX: Accept token from body OR cookie
+      const tokenToVerify = parsed.data.token || request.cookies.get('admin_token')?.value;
+      if (!tokenToVerify) return NextResponse.json({ valid: false }, { status: 401 });
+      const u = await validateSession(tokenToVerify);
       if (!u) return NextResponse.json({ valid: false }, { status: 401 });
       // Use libsql directly for user lookup
       const db = getDb();
@@ -139,12 +144,17 @@ export async function POST(request: NextRequest) {
 
     if (action === 'logout') {
       const parsed = logoutSchema.safeParse(body);
-      if (parsed.success) await destroySession(parsed.data.token);
+      // SEC-C05 FIX: Also destroy cookie-based session
+      const cookieToken = request.cookies.get('admin_token')?.value;
+      const bodyToken = parsed.success ? parsed.data.token : null;
+      if (bodyToken) await destroySession(bodyToken);
+      if (cookieToken && cookieToken !== bodyToken) await destroySession(cookieToken);
       const response = NextResponse.json({ success: true });
       response.cookies.set('admin_token', '', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        // SEC-M02 FIX: Use strict sameSite for admin cookie
+        sameSite: 'strict',
         path: '/',
         maxAge: 0,
       });

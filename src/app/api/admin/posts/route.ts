@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
 import { validateSession } from '@/lib/auth';
-
-// CRITICAL FIX #5: Sanitize HTML content to prevent XSS while preserving safe markdown/HTML
-function sanitizeContent(content: string): string {
-  let sanitized = content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/\bon\w+\s*=\s*\S+/gi, '')
-    .replace(/<iframe\b[^>]*>.*?<\/iframe>/gi, '')
-    .replace(/<object\b[^>]*>.*?<\/object>/gi, '')
-    .replace(/<embed\b[^>]*>/gi, '')
-    .replace(/<form\b[^>]*>.*?<\/form>/gi, '')
-    .replace(/javascript\s*:/gi, 'blocked:')
-    .replace(/data\s*:\s*text\/html/gi, 'data:blocked');
-  return sanitized;
-}
+import { sanitizeContent } from '@/lib/sanitize';
 
 const MAX_TITLE_LENGTH = 300;
 const MAX_CONTENT_LENGTH = 100_000;

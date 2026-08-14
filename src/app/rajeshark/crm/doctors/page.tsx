@@ -119,13 +119,9 @@ export default function DoctorManagementPage() {
   // ============================================================
   // Auth helper
   // ============================================================
+  // SEC-C05 FIX: Cookie-based auth — middleware validates httpOnly cookie
   const getHeaders = useCallback(() => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("admin_token")
-        : null;
     return {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   }, []);
@@ -137,19 +133,11 @@ export default function DoctorManagementPage() {
     setLoading(true);
     setError(null);
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("admin_token")
-          : null;
-      if (!token) {
-        setError("Authentication required. Please log in.");
-        setLoading(false);
-        return;
-      }
+      // SEC-C05 FIX: Cookie auth handled by middleware
 
       const res = await fetch("/api/crm/doctors?active=false", {
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
@@ -259,6 +247,7 @@ export default function DoctorManagementPage() {
       const method = editMode ? "PUT" : "POST";
       const res = await fetch("/api/crm/doctors", {
         method,
+        credentials: 'include',
         headers: getHeaders(),
         body: JSON.stringify(body),
       });

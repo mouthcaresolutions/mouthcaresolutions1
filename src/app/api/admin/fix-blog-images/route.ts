@@ -52,16 +52,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    || new URL(request.url).searchParams.get('token') || '';
-
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized. Pass ?token=YOUR_JWT or use POST with Authorization header' }, { status: 401 });
-  }
-
-  const fakeRequest = new NextRequest(request.url, {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  return POST(fakeRequest);
+export async function GET() {
+  // SEC-H03 FIX: Only accept POST with Authorization header.
+  // GET with ?token= query string is removed (tokens logged in access logs, browser history, Referer).
+  return NextResponse.json(
+    { error: 'Use POST method with Authorization header' },
+    { status: 405 },
+  );
 }
