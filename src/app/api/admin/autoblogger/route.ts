@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
       const treatment = ALL_TREATMENTS.find(t => t.name === treatmentName);
       if (!treatment) return NextResponse.json({ error: 'Treatment not found' }, { status: 404 });
 
-      const numToGenerate = Math.min(bulkCount || 10, 50);
+      const numToGenerate = Math.min(bulkCount || 5, 10);
       const startTime = Date.now();
       let postsCreated = 0;
       let postsFailed = 0;
