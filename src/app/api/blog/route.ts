@@ -60,6 +60,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Blog API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch posts', detail: (error as any)?.message || String(error).substring(0, 200) }, { status: 500 });
   }
 }
