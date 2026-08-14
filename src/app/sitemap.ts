@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import * as blogDb from '@/lib/blog-db';
 
 // Force dynamic rendering — sitemap needs live blog data
 export const dynamic = 'force-dynamic';
@@ -15,18 +16,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
   ];
 
-  // Dynamic import — avoids loading db module at build time
   try {
-    const { db } = await import('@/lib/db');
-    const posts = await db.blogPost.findMany({
-      where: { status: 'published' },
-      select: { slug: true, scheduledAt: true, updatedAt: true },
-      orderBy: { scheduledAt: 'desc' },
-    });
-
-    const blogPages: MetadataRoute.Sitemap = posts.slice(0, 5000).map((post) => ({
+    const posts = await blogDb.getPublishedPostSlugs(5000);
+    const blogPages: MetadataRoute.Sitemap = posts.map((post: any) => ({
       url: `${BASE_URL}/blog/${post.slug}`,
-      lastModified: post.updatedAt,
+      lastModified: post.updatedAt ? new Date(String(post.updatedAt)) : (post.scheduledAt ? new Date(String(post.scheduledAt)) : new Date()),
       changeFrequency: 'monthly' as const,
       priority: 0.7,
     }));

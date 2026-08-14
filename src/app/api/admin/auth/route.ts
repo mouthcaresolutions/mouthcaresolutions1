@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       } else {
         passwordValid = verifyLegacySHA256(password, hash);
         if (passwordValid) {
-          console.log(`Migrating password hash for user '${username}' from SHA-256 to bcrypt`);
+          console.warn(`Migrating password hash for user '${username}' from SHA-256 to bcrypt`);
           const newHash = hashPassword(password);
           await db.execute({
             sql: 'UPDATE AdminUser SET "passwordHash" = ? WHERE username = ?',

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
 import { validateSession } from '@/lib/auth';
-import { postToPlatform, autoShareNewPost, SOCIAL_PLATFORMS } from '@/lib/social-poster';
+import { postToPlatform, autoShareNewPost, getOAuthUrl, SOCIAL_PLATFORMS } from '@/lib/social-poster';
 
 // Seed default social configs
 async function seedSocialConfigs() {
@@ -98,6 +98,16 @@ export async function POST(request: NextRequest) {
 
       const successCount = Object.values(results).filter((r: any) => r.success).length;
       return NextResponse.json({ success: true, results, shared: successCount, total: targets.length });
+    }
+
+    // Get OAuth authorization URL for a platform
+    if (action === 'getOAuthUrl') {
+      if (!platform) return NextResponse.json({ error: 'Platform required' }, { status: 400 });
+      const config = await blogDb.getSocialConfig(platform);
+      if (!config) return NextResponse.json({ error: 'Config not found' }, { status: 404 });
+      const url = getOAuthUrl(platform, config);
+      if (!url) return NextResponse.json({ error: `OAuth not supported for ${platform}. Please paste tokens manually.` }, { status: 400 });
+      return NextResponse.json({ url });
     }
 
     // Auto-share: Share the latest N published posts to all enabled platforms

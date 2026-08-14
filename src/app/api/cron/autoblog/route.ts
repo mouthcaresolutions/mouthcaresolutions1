@@ -109,8 +109,20 @@ export async function GET(request: NextRequest) {
     const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
 
     // Call Z.ai API directly via fetch, bypassing SDK config file requirement
-    const baseUrl = process.env.ZAI_BASE_URL || 'https://internal-api.z.ai/v1';
-    const apiKey = process.env.ZAI_API_KEY || 'Z.ai';
+    const baseUrl = process.env.ZAI_BASE_URL;
+    const apiKey = process.env.ZAI_API_KEY;
+    const chatId = process.env.ZAI_CHAT_ID;
+    const userId = process.env.ZAI_USER_ID;
+    const zaiToken = process.env.ZAI_TOKEN;
+
+    if (!baseUrl || !apiKey || !chatId || !userId || !zaiToken) {
+      console.error('Auto-blogger: Missing required Z.ai env vars (ZAI_BASE_URL, ZAI_API_KEY, ZAI_CHAT_ID, ZAI_USER_ID, ZAI_TOKEN)');
+      await blogDb.setConfigStatus(String(config.id), 'idle');
+      const duration = Math.round((Date.now() - startTime) / 1000);
+      await blogDb.createAutoBloggerLog({ status: 'failed', postsCreated: 0, postsFailed: 1, error: 'Missing Z.ai API credentials', duration });
+      return NextResponse.json({ error: 'Missing Z.ai API credentials' }, { status: 500 });
+        }
+
     const prompt = `You are a professional dental content writer for Mouth Care Solutions, a leading dental clinic in Vijayawada, Andhra Pradesh, India. Write a comprehensive, SEO-optimized, long-form article (minimum 1500 words, ideally 2000+ words) in markdown format.
 
 TITLE: ${title}
@@ -125,9 +137,9 @@ STRUCTURE: Use H2/H3 headings. Include: What is ${treatment.name}, why it's impo
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'X-Z-AI-From': 'Z',
-        'X-Chat-Id': process.env.ZAI_CHAT_ID || 'chat-ae95fa55-0754-4476-bbb6-c071fc7cf845',
-        'X-User-Id': process.env.ZAI_USER_ID || 'e97277a1-c615-4b11-80ce-20c20af11a6a',
-        'X-Token': process.env.ZAI_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZTk3Mjc3YTEtYzYxNS00YjExLTgwY2UtMjBjMjBhZjExYTZhIiwiY2hhdF9pZCI6ImNoYXQtYWU5NWZhNTUtMDc1NC00NDc2LWJiYjYtYzA3MWZjN2NmODQ1IiwicGxhdGZvcm0iOiJ6YWkifQ.M1rZhOKoIzW2hCBPX59AU1Ule5TNkPfa3rlHTuQ9IXw',
+        'X-Chat-Id': chatId,
+        'X-User-Id': userId,
+        'X-Token': zaiToken,
       },
       body: JSON.stringify({
         model: 'glm-4-flash',

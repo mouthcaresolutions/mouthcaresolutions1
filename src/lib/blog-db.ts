@@ -93,6 +93,15 @@ export async function incrementConfigStats(id: string, generated: number, failed
 
 // ---- Public blog queries ----
 
+export async function getPublishedPostSlugs(limit = 5000) {
+  const db = getBlogDb();
+  const result = await db.execute({
+    sql: 'SELECT slug, "updatedAt", "scheduledAt" FROM BlogPost WHERE status = ? ORDER BY "scheduledAt" DESC LIMIT ?',
+    args: ['published', limit],
+  });
+  return result.rows;
+}
+
 export async function getPublishedPosts(page: number, limit: number, category: string, search: string) {
   const db = getBlogDb();
   const offset = (page - 1) * limit;
