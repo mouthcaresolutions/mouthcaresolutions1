@@ -215,29 +215,21 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
-    // Call the Z.ai API directly via fetch with auth headers
-    // SEC-C02 FIX: No hardcoded fallbacks — all credentials must come from env vars
-    const baseUrl = process.env.ZAI_BASE_URL;
+    // Uses the standard Z.ai GLM API (OpenAI-compatible)
+    // Only needs ZAI_API_KEY env var
     const apiKey = process.env.ZAI_API_KEY;
-    const chatId = process.env.ZAI_CHAT_ID;
-    const userId = process.env.ZAI_USER_ID;
-    const zaiToken = process.env.ZAI_TOKEN;
 
-    if (!baseUrl || !apiKey || !chatId || !userId || !zaiToken) {
-      throw new Error('Missing Z.ai API credentials. Set ZAI_BASE_URL, ZAI_API_KEY, ZAI_CHAT_ID, ZAI_USER_ID, ZAI_TOKEN env vars.');
+    if (!apiKey) {
+      throw new Error('Missing ZAI_API_KEY. Set it in Vercel Environment Variables.');
     }
 
     const prompt = generatePrompt(title, treatment, keywords, category);
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'X-Z-AI-From': 'Z',
-        'X-Chat-Id': chatId,
-        'X-User-Id': userId,
-        'X-Token': zaiToken,
       },
       body: JSON.stringify({
         model: 'glm-4-flash',
@@ -269,7 +261,6 @@ async function generateArticle(title: string, treatment: string, keywords: strin
   } catch (error) {
     const msg = (error as any)?.message || String(error);
     console.error('Article generation failed:', title, msg);
-    // Throw instead of returning null so callers can capture the error
     throw new Error(`AI generation failed: ${msg}`);
   }
 }
