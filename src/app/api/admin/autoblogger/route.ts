@@ -215,41 +215,41 @@ Write the complete article now. Make it detailed, informative, and SEO-optimized
 
 async function generateArticle(title: string, treatment: string, keywords: string[], category: string): Promise<{ content: string; excerpt: string; metaDesc: string } | null> {
   try {
-    // Uses the standard Z.ai GLM API (OpenAI-compatible)
-    // Only needs ZAI_API_KEY env var
-    const apiKey = process.env.ZAI_API_KEY;
+    // Uses Google Gemini FREE API — no payment needed
+    // Get your key at https://aistudio.google.com/apikey (free, no credit card)
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      throw new Error('Missing ZAI_API_KEY. Set it in Vercel Environment Variables.');
+      throw new Error('Missing GEMINI_API_KEY. Get a free key at https://aistudio.google.com/apikey and add it in Vercel Environment Variables.');
     }
 
     const prompt = generatePrompt(title, treatment, keywords, category);
 
-    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'glm-4-flash',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4096,
-        temperature: 0.8,
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 8192,
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`API error ${response.status}: ${errText}`);
+      throw new Error(`Gemini API error ${response.status}: ${errText}`);
     }
 
     const result = await response.json();
-
-    const content = result?.choices?.[0]?.message?.content || '';
+    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     if (!content || content.length < 500) {
-      console.error('Article too short or empty:', title, 'len:', content?.length || 0, 'preview:', content?.substring(0, 100));
+      console.error('Article too short or empty:', title, 'len:', content?.length || 0);
       return null;
     }
 
