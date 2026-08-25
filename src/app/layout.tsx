@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     canonical: "https://mouthcaresolutions.com",
   },
   verification: {
-    // google: "PLACEHOLDER_UPDATE_WITH_REAL_CODE", // TODO: Add your Google Search Console verification code
+    google: process.env.GOOGLE_SITE_VERIFICATION || "",
   },
 };
 
@@ -159,7 +159,6 @@ export default function RootLayout({
         <meta name="geo.placename" content="Vijayawada" />
         <meta name="geo.position" content="16.5116;80.631" />
         <meta name="ICBM" content="16.5116, 80.631" />
-        <link rel="canonical" href="https://mouthcaresolutions.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
