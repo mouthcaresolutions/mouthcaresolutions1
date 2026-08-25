@@ -65,9 +65,8 @@ export async function middleware(request: NextRequest) {
   // ==================== AUTH PROTECTION FOR ADMIN ROUTES ====================
   const isAdminRoute = pathname.startsWith('/rajeshark');
   const isLoginPage = pathname === '/rajeshark/login';
-  const isResetPw = pathname === '/api/admin/reset-pw';
 
-  if (isAdminRoute && !isLoginPage && !isResetPw) {
+  if (isAdminRoute && !isLoginPage) {
     // Check for token in cookie or Authorization header
     let token: string | null = null;
 
@@ -102,9 +101,8 @@ export async function middleware(request: NextRequest) {
   const isMutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
   const isApiRoute = pathname.startsWith('/api/');
   const isCron = pathname.startsWith('/api/cron/');
-  const isResetPw = pathname === '/api/admin/reset-pw';
 
-  if (!isMutating || !isApiRoute || isCron || isResetPw) {
+  if (!isMutating || !isApiRoute || isCron) {
     return NextResponse.next();
   }
 
