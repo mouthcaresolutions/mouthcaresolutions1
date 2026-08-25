@@ -7,10 +7,24 @@ function hashPassword(password) {
 }
 
 async function main() {
+  const action = process.argv[2]; // Optional: 'reset-password'
+  const newPassword = process.argv[3];
+
   const db = createClient({
     url: process.env.DATABASE_URL,
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
+
+  // ===== PASSWORD RESET MODE =====
+  if (action === 'reset-password') {
+    const password = newPassword || process.env.ADMIN_PASSWORD || 'MCS@Admin2024';
+    const hash = hashPassword(password);
+    await db.execute({ sql: 'UPDATE AdminUser SET passwordHash = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE username = ?', args: [hash, 'admin'] });
+    console.log(`Admin password reset to: ${password}`);
+    console.log('Login at: https://mouthcaresolutions.com/rajeshark/login');
+    console.log('Username: admin');
+    return;
+  }
 
   console.log('Creating tables...');
 
