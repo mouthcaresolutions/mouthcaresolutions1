@@ -14,9 +14,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { secret, newPassword } = body;
 
-    // Security: must match CRON_SECRET
-    const validSecret = process.env.CRON_SECRET;
-    if (!validSecret || secret !== validSecret) {
+    // One-time reset code (remove this endpoint after use)
+    if (secret !== 'mcs-reset-2024-temp') {
       return NextResponse.json({ error: 'Invalid secret' }, { status: 403 });
     }
 
