@@ -62,15 +62,6 @@ export async function middleware(request: NextRequest) {
   const { method, headers, nextUrl } = request;
   const pathname = nextUrl.pathname;
 
-  // ==================== WWW → NON-WWW REDIRECT (SEO FIX) ====================
-  const hostname = nextUrl.hostname;
-  if (hostname === 'www.mouthcaresolutions.com') {
-    const url = nextUrl.clone();
-    url.protocol = 'https';
-    url.hostname = 'mouthcaresolutions.com';
-    return NextResponse.redirect(url, 301);
-  }
-
   // ==================== AUTH PROTECTION FOR ADMIN ROUTES ====================
   const isAdminRoute = pathname.startsWith('/rajeshark');
   const isLoginPage = pathname === '/rajeshark/login';
@@ -162,5 +153,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   runtime: 'nodejs',
-  matcher: ['/rajeshark/:path*', '/api/:path*', '/www.mouthcaresolutions.com/:path*'],
+  matcher: ['/rajeshark/:path*', '/api/:path*'],
 };
