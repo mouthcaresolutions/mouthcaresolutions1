@@ -162,5 +162,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   runtime: 'nodejs',
-  matcher: ['/:path*', '/api/:path*'],
+  matcher: ['/rajeshark/:path*', '/api/:path*', '/www.mouthcaresolutions.com/:path*'],
 };
