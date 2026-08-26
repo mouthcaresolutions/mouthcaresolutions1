@@ -9,35 +9,34 @@ const MAX_CONTENT_LENGTH = 100_000;
 const MAX_EXCERPT_LENGTH = 2000;
 const MAX_KEYWORDS_LENGTH = 2000;
 
-// Inline JWT verification — avoids cross-function module issues
 function verifyToken(token: string | undefined | null): { username: string; role: string; name: string } | null {
   if (!token) return null;
   try {
     const secret = process.env.JWT_SECRET;
-    if (!secret || secret.length < 32) {
-      console.error('JWT_SECRET missing or too short');
-      return null;
-    }
+    if (!secret || secret.length < 32) return null;
     const parts = token.split('.');
     if (parts.length !== 3) return null;
     const [header, body, signature] = parts;
-    const expectedSig = crypto
-      .createHmac('sha256', secret)
-      .update(`${header}.${body}`)
-      .digest('base64url');
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) return null;
+    const expectedSig = crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url');
+    if (signature.length !== expectedSig.length) return null;
+    let result = 0;
+    for (let i = 0; i < signature.length; i++) {
+      result |= signature.charCodeAt(i) ^ expectedSig.charCodeAt(i);
+    }
+    if (result !== 0) return null;
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf-8'));
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
     return { username: payload.username, role: payload.role, name: payload.name };
-  } catch (e: any) {
-    console.error('JWT verify error:', e.message);
-    return null;
-  }
+  } catch { return null; }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    return NextResponse.json({ version: 'DEBUG-v2', time: Date.now() });
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    const user = verifyToken(token);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
