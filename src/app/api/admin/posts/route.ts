@@ -37,6 +37,24 @@ function verifyToken(token: string | undefined | null): { username: string; role
 
 export async function GET(request: NextRequest) {
   try {
+    // TEMP DEBUG: return auth info
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    const secret = process.env.JWT_SECRET;
+    const user = verifyToken(token);
+    return NextResponse.json({ 
+      debug: true, 
+      hasToken: !!token, 
+      tokenPrefix: token?.substring(0, 20),
+      hasSecret: !!secret, 
+      secretLen: secret?.length,
+      user, 
+      envCheck: {
+        hasDbUrl: !!process.env.DATABASE_URL,
+        nodeEnv: process.env.NODE_ENV,
+      }
+    });
+
+    /* ORIGINAL CODE - restored after debug
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     const user = verifyToken(token);
     if (!user) {
