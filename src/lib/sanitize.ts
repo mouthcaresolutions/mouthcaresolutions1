@@ -1,14 +1,9 @@
 /**
- * SEC-C04 FIX: Proper HTML sanitization using DOMPurify.
- * Replaces the previous regex-based sanitizer that was trivially bypassable.
- * 
- * DOMPurify uses a full HTML parser (DOM-based) to strip dangerous elements,
- * making it resistant to bypass via nested tags, SVG vectors, encoded URLs, etc.
+ * HTML sanitization for blog content using sanitize-html.
+ * Replaces isomorphic-dompurify which had jsdom/ESM compatibility issues on Vercel.
  */
-import DOMPurify from 'isomorphic-dompurify';
+import sanitizeHtml from 'sanitize-html';
 
-// Allow safe dental blog content: headings, paragraphs, lists, links, images,
-// bold, italic, tables, blockquotes, code, hr, br, figure, figcaption
 const ALLOWED_TAGS = [
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'p', 'br', 'hr',
@@ -23,31 +18,27 @@ const ALLOWED_TAGS = [
   'div', 'span',
 ];
 
-const ALLOWED_ATTR = [
-  'href', 'target', 'rel',
-  'src', 'alt', 'title', 'width', 'height', 'loading',
-  'class', 'id', 'style',
-  'colspan', 'rowspan',
-];
+const ALLOWED_ATTRIBUTES = {
+  a: ['href', 'target', 'rel'],
+  img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
+  td: ['colspan'],
+  th: ['colspan', 'rowspan'],
+  '*': ['class', 'id', 'style'],
+};
 
-const PURIFY_CONFIG = {
-  ALLOWED_TAGS,
-  ALLOWED_ATTR,
-  ALLOW_DATA_ATTR: false,
-  // Block all script-related content
-  FORBID_TAGS: ['script', 'noscript', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button', 'svg', 'math'],
-  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit', 'onchange', 'oninput', 'onkeydown', 'onkeyup', 'onkeypress', 'onmousedown', 'onmouseup', 'ontouchstart', 'ontouchend', 'ontoggle', 'onbegin', 'onend', 'onrepeat'],
-  // Allow only safe URL protocols
-  ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+const PURIFY_CONFIG: sanitizeHtml.IOptions = {
+  allowedTags: ALLOWED_TAGS,
+  allowedAttributes: ALLOWED_ATTRIBUTES,
+  allowProtocolRelative: true,
+  disallowedTagsMode: 'discard',
 };
 
 /**
  * Sanitize HTML content to prevent XSS while preserving safe blog content.
- * Uses DOMPurify with strict allowlist of tags and attributes.
  */
 export function sanitizeContent(content: string): string {
   if (!content || typeof content !== 'string') return content || '';
-  return DOMPurify.sanitize(content, PURIFY_CONFIG);
+  return sanitizeHtml(content, PURIFY_CONFIG);
 }
 
 /**
@@ -55,8 +46,5 @@ export function sanitizeContent(content: string): string {
  */
 export function stripHtml(content: string): string {
   if (!content || typeof content !== 'string') return content || '';
-  return DOMPurify.sanitize(content, {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-  });
+  return sanitizeHtml(content, { allowedTags: [], allowedAttributes: {} });
 }
