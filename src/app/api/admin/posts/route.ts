@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import * as blogDb from '@/lib/blog-db';
-import { verifyJWT, checkBodySize } from '@/lib/auth';
+import { checkBodySize } from '@/lib/auth';
 import { sanitizeContent } from '@/lib/sanitize';
 
 const MAX_TITLE_LENGTH = 300;
@@ -8,12 +9,28 @@ const MAX_CONTENT_LENGTH = 100_000;
 const MAX_EXCERPT_LENGTH = 2000;
 const MAX_KEYWORDS_LENGTH = 2000;
 
-function auth(token: string | undefined | null): string | null {
+// Inline JWT verification — avoids cross-function module issues
+function verifyToken(token: string | undefined | null): { username: string; role: string; name: string } | null {
   if (!token) return null;
   try {
-    const payload = verifyJWT(token);
-    return payload?.username || null;
-  } catch {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.length < 32) {
+      console.error('JWT_SECRET missing or too short');
+      return null;
+    }
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [header, body, signature] = parts;
+    const expectedSig = crypto
+      .createHmac('sha256', secret)
+      .update(`${header}.${body}`)
+      .digest('base64url');
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) return null;
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf-8'));
+    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return { username: payload.username, role: payload.role, name: payload.name };
+  } catch (e: any) {
+    console.error('JWT verify error:', e.message);
     return null;
   }
 }
@@ -21,7 +38,8 @@ function auth(token: string | undefined | null): string | null {
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!auth(token)) {
+    const user = verifyToken(token);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -44,7 +62,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!auth(token)) {
+    const user = verifyToken(token);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -106,7 +125,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!auth(token)) {
+    const user = verifyToken(token);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -147,7 +167,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!auth(token)) {
+    const user = verifyToken(token);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
