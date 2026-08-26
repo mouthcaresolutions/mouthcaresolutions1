@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/auth';
+import { verifyJWT } from '@/lib/auth';
 import * as blogDb from '@/lib/blog-db';
 
 // ==================== SUPPORTED PLATFORMS ====================
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('admin_token')?.value;
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('admin_token')?.value;
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

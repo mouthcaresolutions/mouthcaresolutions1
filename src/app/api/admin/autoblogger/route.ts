@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
-import { validateSession } from '@/lib/auth';
+import { verifyJWT } from '@/lib/auth';
 import { autoShareNewPost } from '@/lib/social-poster';
 import { fetchBlogImage, prependImageToContent } from '@/lib/fetch-blog-image';
 import { sanitizeContent } from '@/lib/sanitize';
@@ -268,7 +268,7 @@ async function generateArticle(title: string, treatment: string, keywords: strin
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const config = await blogDb.getAutoBloggerConfig();
@@ -284,7 +284,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

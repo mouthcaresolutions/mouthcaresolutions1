@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
-import { validateSession } from '@/lib/auth';
+import { verifyJWT } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

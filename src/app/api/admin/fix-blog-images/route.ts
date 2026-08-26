@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/auth';
+import { verifyJWT } from '@/lib/auth';
 import * as blogDb from '@/lib/blog-db';
 import { fetchBlogImage, prependImageToContent, extractImageFromContent } from '@/lib/fetch-blog-image';
 
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

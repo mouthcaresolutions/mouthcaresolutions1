@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { validateSession } from '@/lib/auth';
+import { verifyJWT } from '@/lib/auth';
 import * as blogDb from '@/lib/blog-db';
 import { getCRM } from '@/lib/crm-db';
 import { createDoctorSchema, updateDoctorSchema, validateBody } from '@/lib/validation';
 
 // Helper: check if user is admin
-async function isAdmin(token: string): Promise<boolean> {
-  const username = await validateSession(token);
-  if (!username) return false;
-  const user = await blogDb.getAdminUser(username);
-  return user?.role === 'admin';
+function isAdmin(token: string): boolean {
+  const payload = verifyJWT(token);
+  if (!payload?.username) return false;
+  // verifyJWT already validates the JWT signature and expiration,
+  // so we trust the role claim directly from the token.
+  return payload.role === 'admin';
 }
 
 // GET: List CRM doctors
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await isAdmin(token))) {
+    if (!token || !isAdmin(token)) {
       return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
     }
 
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await isAdmin(token))) {
+    if (!token || !isAdmin(token)) {
       return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
     }
 

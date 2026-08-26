@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as blogDb from '@/lib/blog-db';
-import { validateSession, checkBodySize } from '@/lib/auth';
+import { verifyJWT, checkBodySize } from '@/lib/auth';
 import { postToPlatform, autoShareNewPost, getOAuthUrl, SOCIAL_PLATFORMS } from '@/lib/social-poster';
 
 // Seed default social configs
@@ -17,7 +17,7 @@ async function seedSocialConfigs() {
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     await seedSocialConfigs();
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token || !(await validateSession(token))) {
+    if (!token || !verifyJWT(token)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
